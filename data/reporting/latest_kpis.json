@@ -1,0 +1,10 @@
+{
+  "total_events": 7,
+  "unique_users": 4,
+  "purchases": 2,
+  "revenue": 69.9,
+  "conversion_rate": 0.5,
+  "error_rate": 0.1429,
+  "window_start": "2026-09-01T09:00:00Z",
+  "window_end": "2026-09-01T09:32:00Z"
+}

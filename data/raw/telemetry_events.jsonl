@@ -1,0 +1,12 @@
+{"event_id": "evt-001", "user_id": 101, "timestamp": "2026-09-01T09:00:00Z", "action": " PAGE_VIEW ", "amount": null}
+{"event_id": "evt-002", "user_id": "101", "timestamp": "2026-09-01 09:04:00", "action": "Signup", "amount": null}
+{"event_id": "evt-003", "user_id": 202, "timestamp": "09/01/2026 09:08:00", "action": " ADD_TO_CART ", "amount": null}
+{"event_id": "evt-004", "user_id": "202", "timestamp": "2026/09/01 09:12:00", "action": "PURCHASE", "amount": "49.90"}
+{"event_id": "evt-004", "user_id": "202", "timestamp": "2026/09/01 09:12:00", "action": "PURCHASE", "amount": "49.90"}
+{"event_id": "evt-005", "user_id": 303, "timestamp": "2026-09-01T09:15:00+00:00", "action": "error", "amount": null}
+{"event_id": "evt-006", "user_id": " 303 ", "timestamp": "2026-09-01T09:20:00Z", "action": "page_view", "amount": null}
+{"event_id": "evt-007", "user_id": 404, "timestamp": "2026-09-01T09:24:00Z", "action": "purchase", "amount": "not-a-number"}
+{"event_id": "evt-008", "user_id": null, "timestamp": "2026-09-01T09:28:00Z", "action": "page_view", "amount": null}
+{"event_id": "evt-009", "user_id": 505, "timestamp": "not-a-date", "action": "signup", "amount": null}
+{"event_id": "evt-010", "user_id": 505, "timestamp": "2026-09-01T09:32:00Z", "action": " purchase ", "amount": 20}
+{"event_id": "evt-011", "user_id": 606, "timestamp": "2026-09-01T09:35:00Z", "action": null, "amount": null}

@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-09-09T17:52:34.458620+00:00",
+  "sample": [
+    {
+      "event_id": "evt-001",
+      "user_id": "101",
+      "timestamp": "2026-09-01T09:00:00Z",
+      "action": "page_view",
+      "amount": null
+    },
+    {
+      "event_id": "evt-002",
+      "user_id": "101",
+      "timestamp": "2026-09-01T09:04:00Z",
+      "action": "signup",
+      "amount": null
+    },
+    {
+      "event_id": "evt-003",
+      "user_id": "202",
+      "timestamp": "2026-09-01T09:08:00Z",
+      "action": "add_to_cart",
+      "amount": null
+    }
+  ],
+  "kpis": {
+    "total_events": 7,
+    "unique_users": 4,
+    "purchases": 2,
+    "revenue": 69.9,
+    "conversion_rate": 0.5,
+    "error_rate": 0.1429,
+    "window_start": "2026-09-01T09:00:00Z",
+    "window_end": "2026-09-01T09:32:00Z"
+  }
+}
