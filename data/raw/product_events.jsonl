@@ -1,0 +1,5 @@
+{"product_event_id":"prod-001","customer":707,"occurred_at":"2026-09-01 09:02:00","event_type":"VIEW","price":null}
+{"product_event_id":"prod-002","customer":"707","occurred_at":"2026-09-01T09:06:00Z","event_type":"CART_ADD","price":null}
+{"product_event_id":"prod-003","customer":707,"occurred_at":"09/01/2026 09:10:00","event_type":"ORDER","price":"15.50"}
+{"product_event_id":"prod-004","customer":808,"occurred_at":"2026-09-01T09:18:00Z","event_type":"SIGNUP","price":null}
+{"product_event_id":"prod-005","customer":808,"occurred_at":"2026-09-01T09:22:00Z","event_type":"FAIL","price":null}

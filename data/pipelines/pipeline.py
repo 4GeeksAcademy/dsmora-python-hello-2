@@ -153,6 +153,64 @@ def transform_events(raw_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return clean_events
 
 
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def transform_product_events(raw_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Adapta el contrato del origen producto al esquema canonico."""
+    logger = get_run_logger()
+    clean_events: list[dict[str, Any]] = []
+    seen_events: set[str] = set()
+    invalid_count = 0
+    duplicate_count = 0
+    action_mapping = {
+        "VIEW": "page_view",
+        "CART_ADD": "add_to_cart",
+        "ORDER": "purchase",
+        "FAIL": "error",
+        "SIGNUP": "signup",
+    }
+
+    for raw_event in raw_events:
+        try:
+            customer = raw_event.get("customer")
+            if customer is None or not str(customer).strip():
+                raise ValueError("customer ausente")
+            user_id = str(customer).strip()
+            event_type = raw_event.get("event_type")
+            if not isinstance(event_type, str) or event_type.strip().upper() not in action_mapping:
+                raise ValueError("event_type desconocido")
+            action = action_mapping[event_type.strip().upper()]
+            timestamp = _parse_timestamp(raw_event.get("occurred_at"))
+            amount: float | None = None
+            if action == "purchase":
+                amount = float(raw_event.get("price"))
+                if amount < 0:
+                    raise ValueError("price negativo")
+            event_id = str(raw_event.get("product_event_id", "")).strip()
+            deduplication_key = event_id or json.dumps(
+                [user_id, timestamp.isoformat(), action, amount], separators=(",", ":")
+            )
+            if deduplication_key in seen_events:
+                duplicate_count += 1
+                continue
+            seen_events.add(deduplication_key)
+            clean_events.append(
+                {
+                    "event_id": event_id or None,
+                    "user_id": user_id,
+                    "timestamp": timestamp.isoformat().replace("+00:00", "Z"),
+                    "action": action,
+                    "amount": amount,
+                }
+            )
+        except (TypeError, ValueError):
+            invalid_count += 1
+
+    logger.info(
+        "Transformados %s eventos de producto; descartados %s invalidos y %s duplicados",
+        len(clean_events), invalid_count, duplicate_count,
+    )
+    return clean_events
+
 @task
 def calculate_kpis(events: list[dict[str, Any]]) -> dict[str, Any]:
     if not events:
@@ -246,6 +304,26 @@ def export_eval_snapshot(
     return str(snapshot_path)
 
 
+@flow(name="web-telemetry-subflow")
+def web_telemetry_subflow(
+    source_path: str = "data/raw/telemetry_events.jsonl",
+) -> dict[str, Any]:
+    """Extrae y transforma el origen de telemetria web."""
+    raw_events = extract_events(source_path)
+    clean_events = transform_events(raw_events)
+    return {"events": clean_events, "records_extracted": len(raw_events)}
+
+
+@flow(name="product-telemetry-subflow")
+def product_telemetry_subflow(
+    source_path: str = "data/raw/product_events.jsonl",
+) -> dict[str, Any]:
+    """Extrae y transforma el origen de telemetria de producto."""
+    raw_events = extract_events(source_path)
+    clean_events = transform_product_events(raw_events)
+    return {"events": clean_events, "records_extracted": len(raw_events)}
+
+
 def _record_pipeline_run(metadata: dict[str, Any]) -> None:
     REPORTING_DIR.mkdir(parents=True, exist_ok=True)
     with (REPORTING_DIR / "pipeline_runs.jsonl").open("a", encoding="utf-8") as output:
@@ -255,6 +333,7 @@ def _record_pipeline_run(metadata: dict[str, Any]) -> None:
 @flow(name="business-performance-pipeline", log_prints=True)
 def business_performance_pipeline(
     source_path: str = "data/raw/telemetry_events.jsonl",
+    product_source_path: str = "data/raw/product_events.jsonl",
     fail_optional_snapshot: bool = False,
 ) -> dict[str, Any]:
     logger = get_run_logger()
@@ -266,9 +345,12 @@ def business_performance_pipeline(
     error: str | None = None
 
     try:
-        raw_events = extract_events(source_path)
-        records_extracted = len(raw_events)
-        clean_events = transform_events(raw_events)
+        web_result = web_telemetry_subflow(source_path)
+        product_result = product_telemetry_subflow(product_source_path)
+        web_events = web_result["events"]
+        product_events = product_result["events"]
+        clean_events = web_events + product_events
+        records_extracted = web_result["records_extracted"] + product_result["records_extracted"]
         records_transformed = len(clean_events)
         kpis = calculate_kpis(clean_events)
         load_result = load_kpis(kpis)
@@ -325,7 +407,11 @@ def _parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     arguments = _parse_args()
-    business_performance_pipeline(
-        source_path=arguments.source_path,
-        fail_optional_snapshot=arguments.fail_optional_snapshot,
+    business_performance_pipeline.serve(
+        name="business-performance-report-deployment",
+        rrule="FREQ=WEEKLY;BYDAY=MO",
+        parameters={
+            "source_path": arguments.source_path,
+            "fail_optional_snapshot": arguments.fail_optional_snapshot,
+        },
     )

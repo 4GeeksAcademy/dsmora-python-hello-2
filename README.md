@@ -96,11 +96,16 @@ La ingesta y la transformacion son deliberadamente distintas: leer JSON y
 devolver sus diccionarios es ingesta; cambiar tipos, validar, normalizar y
 deduplicar ocurre solo durante la transformacion.
 
+## Subflows y origenes
+
+`business-performance-pipeline` es el flow principal. `web-telemetry-subflow` lee `data/raw/telemetry_events.jsonl` y `product-telemetry-subflow` lee `data/raw/product_events.jsonl`. El flow principal combina sus eventos limpios antes de calcular y cargar los KPIs.
+
 ## Archivos generados
 
 ```text
 data/
 	raw/telemetry_events.jsonl
+	raw/product_events.jsonl
 	processed/eval_snapshot.json
 	reporting/business_kpis.sqlite
 	reporting/pipeline_runs.jsonl
