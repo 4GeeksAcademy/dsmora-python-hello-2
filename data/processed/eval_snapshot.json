@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-09T17:52:34.458620+00:00",
+  "generated_at": "2026-09-11T17:30:47.698586+00:00",
   "sample": [
     {
       "event_id": "evt-001",
@@ -24,12 +24,12 @@
     }
   ],
   "kpis": {
-    "total_events": 7,
-    "unique_users": 4,
-    "purchases": 2,
-    "revenue": 69.9,
+    "total_events": 12,
+    "unique_users": 6,
+    "purchases": 3,
+    "revenue": 85.4,
     "conversion_rate": 0.5,
-    "error_rate": 0.1429,
+    "error_rate": 0.1667,
     "window_start": "2026-09-01T09:00:00Z",
     "window_end": "2026-09-01T09:32:00Z"
   }
