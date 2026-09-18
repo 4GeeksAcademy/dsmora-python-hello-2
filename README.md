@@ -1,23 +1,29 @@
-# Python Hello
+# Python con uv
 
-The most basic boilerplate to start a Python project at 4Geeks is to start your very first Python project from scratch.
+Este proyecto usa [uv](https://docs.astral.sh/uv/) como gestor de paquetes y de entornos virtuales de Python.
 
-## What to do next?
+## Entorno virtual
 
-Open the `main.py` file and start writing your code.
-
-Execute your code by typing the following command on your terminal:
+Crear o recrear el entorno virtual:
 
 ```bash
-$ python main.py
+uv venv
 ```
 
-You can create and include as many python files (a.k.a. modules) as you want using the import statements.
+Activarlo en Linux/macOS:
 
-## Requirements
+```bash
+source .venv/bin/activate
+```
 
-Make sure you have Python installed in your computer. We strongly recommend [installing Python through Pyenv ](https://4geeks.com/how-to/what-is-pyenv-and-how-to-install-pyenv) to avoid version conflicts in the future.
+## Ejecutar el programa
 
-### Contributors
+```bash
+uv run python main.py
+```
 
-This template was built as part of the [4Geeks Python Resources](https://4geeks.com/technology/python) for learning at [4Geeks.com](https://4geeks.com) by [Alejandro Sanchez](https://twitter.com/alesanchezr) and [many other contributors](https://github.com/4GeeksAcademy/python-hello/graphs/contributors).
+También puede ejecutarse directamente con Python:
+
+```bash
+python main.py
+```
