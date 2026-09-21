@@ -1,0 +1,24 @@
+[project]
+name = "dsmora-python-hello-2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "dsmora-4geeks", email = "dsmora4geeks@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "celery>=5.6.3",
+    "fastapi>=0.115.0",
+    "flower>=2.1.0",
+    "redis>=8.1.0",
+    "requests>=2.32.0",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[project.scripts]
+dsmora-python-hello-2 = "dsmora_python_hello_2:main"
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
