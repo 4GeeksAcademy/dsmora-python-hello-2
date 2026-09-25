@@ -1,0 +1,952 @@
+trip_duration_days,destination,transportation_mode,number_of_travelers,international_trip,destination_style,trip_purpose,budget_usd
+12,bali,car,6,yes,nature,leisure,3684
+2,cusco,motorcycle,4,yes,nature,business,3567
+2,reykjavik,train,1,no,mountain,business,1170
+21,vancouver,cruise,6,no,city,leisure,3302
+30,barcelona,car,6,yes,mountain,business,4864
+15,cusco,motorcycle,8,yes,nature,business,4048
+8,amsterdam,cruise,5,yes,nature,business,5163
+19,sydney,cruise,5,yes,beach,leisure,5245
+28,bangkok,cruise,7,yes,beach,business,6317
+17,paris,plane,5,no,beach,leisure,2452
+9,lisbon,bus,5,yes,nature,leisure,2985
+17,tokyo,motorcycle,6,yes,beach,leisure,3437
+29,rome,motorcycle,7,yes,beach,leisure,4859
+27,sydney,cruise,2,no,beach,leisure,2326
+8,rome,motorcycle,6,yes,city,leisure,3259
+8,lisbon,car,7,yes,beach,leisure,3595
+29,bali,ferry,3,yes,mountain,business,4879
+30,bangkok,bus,7,no,beach,business,4384
+27,athens,bus,6,no,beach,business,3868
+5,new york,train,5,yes,mountain,business,2331
+1,sydney,train,5,no,mountain,business,2346
+19,cusco,ferry,6,yes,nature,leisure,4562
+28,dubai,car,7,yes,city,leisure,4203
+13,dubai,car,1,no,beach,business,2034
+13,marrakech,motorcycle,5,no,beach,leisure,2503
+22,vancouver,car,5,yes,city,leisure,3290
+27,cancun,bus,7,yes,nature,business,5170
+22,bangkok,plane,4,yes,nature,business,4276
+16,tokyo,ferry,4,yes,city,business,3396
+10,marrakech,motorcycle,1,yes,mountain,business,2164
+22,cape town,car,0,yes,nature,leisure,3128
+8,cusco,plane,6,yes,mountain,business,3690
+26,bangkok,plane,2,no,beach,business,3357
+8,cancun,car,5,yes,beach,business,2011
+25,cancun,car,2,no,beach,leisure,2192
+6,bangkok,ferry,1,no,city,leisure,907
+10,bali,ferry,6,yes,city,business,4412
+21,rome,bus,2,yes,nature,business,3756
+22,athens,ferry,7,no,mountain,business,3670
+7,barcelona,bus,7,yes,beach,business,2989
+28,sydney,cruise,8,yes,nature,leisure,5477
+22,lisbon,bus,8,no,mountain,business,3354
+20,prague,bus,2,yes,mountain,leisure,2613
+13,marrakech,car,1,yes,city,leisure,2372
+16,amsterdam,bus,8,yes,mountain,business,5173
+18,bangkok,plane,3,no,city,business,3526
+4,bangkok,cruise,1,yes,mountain,business,2255
+10,paris,motorcycle,8,yes,city,leisure,3561
+4,cusco,train,3,yes,mountain,business,3696
+8,lisbon,bus,6,yes,beach,business,3609
+2,bali,cruise,4,no,nature,leisure,1693
+27,prague,train,6,no,city,business,4143
+19,vancouver,ferry,1,yes,beach,business,3499
+16,lisbon,plane,7,no,nature,leisure,3616
+12,istanbul,motorcycle,7,yes,mountain,leisure,3855
+8,athens,ferry,7,yes,nature,business,3259
+25,sydney,car,6,no,city,leisure,1811
+14,lisbon,bus,1,yes,nature,business,1709
+18,rome,plane,6,yes,city,business,5424
+24,tokyo,cruise,7,yes,city,business,5421
+24,marrakech,bus,3,no,mountain,leisure,2097
+18,sydney,cruise,2,no,city,leisure,3014
+5,cancun,bus,3,no,city,leisure,1344
+16,bali,motorcycle,2,yes,city,business,1847
+17,istanbul,motorcycle,6,yes,beach,business,3871
+29,cusco,ferry,5,yes,beach,leisure,3361
+24,cape town,bus,3,yes,beach,leisure,2192
+7,lisbon,plane,8,yes,mountain,business,6666
+24,paris,car,2,no,mountain,business,3341
+18,prague,bus,1,yes,beach,leisure,2545
+30,prague,motorcycle,3,no,beach,leisure,2826
+9,amsterdam,motorcycle,6,yes,beach,business,2549
+14,cancun,cruise,8,no,mountain,business,5816
+19,tokyo,plane,5,no,nature,business,3358
+14,barcelona,motorcycle,1,yes,mountain,leisure,2066
+7,paris,bus,7,no,mountain,business,2707
+3,vancouver,cruise,8,no,city,leisure,3908
+20,paris,bus,1,yes,mountain,leisure,1856
+7,sydney,train,5,yes,city,business,4092
+3,amsterdam,car,6,no,mountain,business,2164
+1,bali,ferry,7,yes,mountain,business,4956
+14,istanbul,bus,7,no,beach,leisure,3108
+13,dubai,ferry,7,yes,nature,business,4436
+6,paris,motorcycle,5,yes,mountain,leisure,2940
+13,sydney,car,8,no,nature,business,3420
+9,marrakech,motorcycle,3,no,city,leisure,1679
+7,paris,cruise,4,yes,nature,leisure,3555
+18,tokyo,motorcycle,2,no,city,business,2483
+29,tokyo,bus,6,yes,mountain,business,4829
+12,cusco,cruise,2,yes,city,leisure,3902
+13,amsterdam,train,6,yes,city,leisure,3909
+10,dubai,car,4,no,city,business,2783
+29,bali,car,7,yes,beach,leisure,5342
+27,sydney,cruise,2,yes,nature,leisure,3755
+3,new york,plane,8,no,city,business,4136
+15,new york,cruise,6,no,city,leisure,4465
+22,istanbul,ferry,2,no,nature,leisure,2676
+14,dubai,car,3,yes,city,business,2568
+22,barcelona,plane,3,yes,mountain,business,5377
+7,amsterdam,plane,4,yes,mountain,leisure,2859
+6,barcelona,cruise,1,no,city,leisure,1329
+21,rome,ferry,3,yes,mountain,leisure,3475
+18,sydney,motorcycle,3,yes,city,leisure,3134
+8,barcelona,plane,8,no,beach,leisure,3365
+30,cape town,motorcycle,5,no,beach,leisure,3967
+20,istanbul,train,2,yes,mountain,business,3705
+22,marrakech,motorcycle,1,no,mountain,leisure,1515
+13,sydney,ferry,6,no,beach,leisure,2514
+14,sydney,cruise,1,yes,city,leisure,2991
+5,cape town,motorcycle,3,yes,beach,leisure,2067
+24,new york,train,6,no,beach,business,3356
+2,sydney,motorcycle,3,no,nature,business,1995
+25,cusco,car,3,yes,nature,leisure,2696
+29,bali,car,5,no,nature,business,3315
+14,athens,train,7,yes,city,business,4414
+8,vancouver,car,6,yes,mountain,business,3512
+1,marrakech,cruise,5,yes,mountain,business,3373
+6,prague,motorcycle,1,no,city,business,1444
+11,istanbul,car,7,yes,nature,business,4945
+8,reykjavik,plane,1,yes,city,business,2707
+7,cancun,bus,6,yes,nature,leisure,2147
+7,athens,cruise,8,no,beach,business,3527
+19,amsterdam,motorcycle,7,no,city,business,2951
+27,amsterdam,ferry,1,no,beach,leisure,2376
+15,bangkok,plane,7,no,nature,business,4088
+23,tokyo,car,2,no,mountain,leisure,2053
+4,istanbul,motorcycle,1,no,nature,leisure,709
+3,sydney,motorcycle,3,no,beach,leisure,1087
+25,amsterdam,bus,2,no,nature,business,2635
+11,cancun,train,8,no,mountain,business,2313
+1,marrakech,plane,7,yes,city,business,4386
+18,new york,car,3,yes,mountain,leisure,2166
+26,marrakech,cruise,6,no,beach,leisure,5797
+19,istanbul,ferry,6,yes,city,leisure,4986
+29,athens,cruise,2,no,mountain,business,4746
+26,cusco,cruise,8,no,nature,leisure,5129
+16,new york,motorcycle,7,no,beach,leisure,3065
+5,lisbon,train,5,yes,mountain,business,3779
+2,athens,motorcycle,4,yes,nature,business,2670
+16,amsterdam,cruise,4,yes,mountain,business,3859
+17,istanbul,ferry,8,no,city,business,3791
+18,amsterdam,train,1,yes,city,business,2589
+29,cape town,plane,6,no,city,leisure,4338
+27,barcelona,teleportation,6,no,city,business,2701
+24,barcelona,car,6,no,beach,leisure,3082
+18,new york,train,1,yes,beach,leisure,3016
+27,marrakech,train,7,yes,nature,business,5312
+23,dubai,car,7,yes,beach,business,6193
+10,cancun,train,2,no,city,business,1896
+18,athens,train,8,yes,nature,leisure,5087
+20,tokyo,bus,2,yes,nature,business,3101
+26,istanbul,cruise,6,yes,mountain,leisure,4863
+21,reykjavik,car,6,no,beach,leisure,3098
+28,cusco,motorcycle,6,no,beach,business,3261
+22,marrakech,bus,4,yes,city,leisure,4116
+5,athens,train,4,yes,nature,business,2412
+17,bangkok,ferry,1,yes,beach,business,2595
+28,dubai,car,7,no,city,business,4326
+2,amsterdam,bus,4,yes,city,business,2692
+7,cusco,train,5,no,beach,leisure,1866
+25,new york,train,4,no,mountain,business,4156
+14,reykjavik,train,3,yes,beach,business,3981
+24,cusco,ferry,7,yes,mountain,leisure,4156
+5,sydney,plane,2,yes,city,leisure,2919
+21,paris,train,7,yes,mountain,leisure,5597
+12,amsterdam,train,5,yes,mountain,business,5101
+21,new york,cruise,5,no,city,business,3064
+18,cancun,cruise,5,yes,mountain,leisure,4365
+23,barcelona,train,7,yes,nature,leisure,4126
+15,sydney,train,6,yes,mountain,business,4086
+5,rome,train,8,yes,beach,business,3940
+12,tokyo,bus,1,no,mountain,leisure,1282
+17,athens,ferry,6,yes,mountain,leisure,2137
+12,lisbon,car,5,no,nature,business,3009
+3,rome,bus,7,no,city,business,2822
+8,rome,motorcycle,4,no,city,business,2872
+13,cusco,train,2,yes,city,leisure,2813
+2,athens,train,6,no,beach,business,2767
+17,cancun,cruise,5,yes,mountain,leisure,3716
+23,new york,car,5,no,nature,leisure,3272
+11,istanbul,cruise,7,yes,mountain,business,3539
+15,bali,cruise,5,no,beach,business,3561
+2,amsterdam,plane,6,no,beach,leisure,2354
+12,cancun,cruise,8,no,city,leisure,3471
+16,cusco,bus,8,yes,city,leisure,4931
+5,prague,car,4,yes,nature,business,2902
+16,marrakech,ferry,7,no,city,leisure,2620
+14,bangkok,cruise,4,no,nature,leisure,2936
+5,paris,motorcycle,5,no,city,business,2601
+29,reykjavik,car,8,no,city,leisure,4071
+4,marrakech,ferry,6,yes,nature,leisure,3529
+14,prague,ferry,6,yes,mountain,leisure,4583
+1,cape town,bus,2,no,mountain,business,1323
+2,cusco,plane,5,no,beach,leisure,1691
+17,istanbul,bus,7,no,mountain,business,3045
+15,amsterdam,ferry,8,yes,nature,leisure,3461
+16,amsterdam,bus,4,no,nature,business,1984
+6,bangkok,bus,2,yes,mountain,business,2358
+20,vancouver,bus,7,no,city,leisure,3370
+25,reykjavik,ferry,3,no,beach,business,2937
+6,bali,car,1,maybe,city,leisure,710
+24,paris,car,8,no,nature,leisure,3192
+16,new york,bus,6,yes,nature,business,4399
+12,bangkok,motorcycle,2,no,mountain,leisure,1145
+23,cape town,cruise,7,no,nature,business,5181
+3,dubai,car,5,no,beach,leisure,1893
+9,vancouver,ferry,6,no,mountain,business,3753
+9,cusco,cruise,2,no,nature,business,2908
+8,amsterdam,bus,4,no,beach,business,2110
+14,paris,cruise,7,yes,nature,business,6629
+9,bangkok,train,2,yes,city,business,2957
+27,dubai,car,8,yes,mountain,business,4727
+28,marrakech,car,8,yes,nature,business,6270
+7,cancun,motorcycle,2,no,beach,leisure,978
+11,new york,train,1,yes,city,leisure,2443
+2,vancouver,ferry,1,no,nature,leisure,664
+17,bali,train,1,no,nature,leisure,1843
+28,cancun,plane,6,no,mountain,business,4152
+16,dubai,train,8,yes,nature,leisure,2842
+5,istanbul,motorcycle,8,yes,mountain,business,3739
+29,paris,bus,1,no,city,leisure,2604
+14,vancouver,ferry,4,no,city,business,2664
+17,reykjavik,ferry,8,yes,beach,business,4479
+5,new york,ferry,3,yes,mountain,leisure,2077
+14,tokyo,plane,7,yes,mountain,business,4390
+8,barcelona,car,5,no,city,business,3268
+3,vancouver,cruise,8,yes,nature,business,5473
+27,marrakech,ferry,6,no,beach,leisure,3160
+5,rome,bus,2,yes,city,business,2572
+9,cape town,bus,5,yes,space,leisure,3527
+7,cusco,plane,4,yes,nature,business,4178
+23,vancouver,motorcycle,6,yes,beach,leisure,3056
+24,amsterdam,bus,5,yes,nature,leisure,4056
+25,reykjavik,bus,3,no,nature,leisure,1815
+25,prague,car,3,yes,beach,business,4240
+17,vancouver,car,2,no,beach,leisure,1321
+19,vancouver,plane,6,yes,mountain,leisure,4739
+6,dubai,cruise,1,yes,mountain,business,2669
+21,reykjavik,plane,5,no,mountain,business,3524
+8,bali,cruise,8,no,beach,business,5082
+26,vancouver,motorcycle,1,yes,beach,leisure,2791
+20,cape town,car,1,no,mountain,leisure,1794
+29,cancun,car,3,yes,mountain,leisure,3575
+2,dubai,ferry,6,yes,city,leisure,2137
+23,dubai,ferry,3,no,nature,leisure,2519
+4,dubai,ferry,3,yes,beach,business,2472
+22,reykjavik,train,2,yes,mountain,leisure,3101
+16,vancouver,plane,3,no,beach,leisure,2009
+3,marrakech,bus,5,no,beach,business,2235
+29,paris,plane,1,no,city,business,2839
+21,tokyo,plane,5,yes,beach,leisure,4181
+14,lisbon,cruise,1,no,nature,business,2782
+13,reykjavik,cruise,2,no,nature,leisure,2585
+22,prague,motorcycle,2,no,mountain,leisure,1760
+3,bangkok,bus,6,yes,mountain,leisure,3708
+5,lisbon,car,1,no,city,business,1701
+16,cape town,cruise,5,yes,nature,business,6123
+8,cape town,cruise,7,no,beach,business,3985
+30,bali,cruise,8,no,city,1,4712
+27,istanbul,train,7,yes,nature,business,5821
+19,cancun,train,3,yes,nature,leisure,2831
+28,new york,motorcycle,7,no,mountain,leisure,3307
+29,vancouver,car,3,no,beach,business,2920
+10,bangkok,cruise,1,yes,city,leisure,2876
+1,prague,cruise,4,yes,nature,business,2308
+6,cusco,ferry,5,no,nature,business,2240
+3,cancun,motorcycle,4,yes,city,leisure,2630
+19,reykjavik,ferry,8,no,beach,business,3806
+7,vancouver,plane,2,no,nature,business,1854
+20,dubai,bus,1,no,nature,leisure,1318
+14,cusco,cruise,7,no,beach,leisure,3336
+19,athens,bus,1,yes,beach,leisure,2892
+25,marrakech,train,3,yes,mountain,leisure,3651
+26,paris,bus,7,yes,nature,leisure,5319
+24,istanbul,car,2,no,nature,leisure,1325
+14,new york,bus,6,yes,city,leisure,4010
+11,barcelona,train,7,yes,city,leisure,2506
+12,cape town,ferry,6,no,nature,business,3243
+21,reykjavik,motorcycle,2,no,beach,business,2134
+8,bali,plane,7,no,beach,business,3627
+7,tokyo,ferry,5,no,mountain,leisure,2245
+2,reykjavik,motorcycle,2,no,mountain,leisure,937
+17,vancouver,cruise,1,no,city,leisure,2416
+26,dubai,motorcycle,2,no,beach,business,2611
+28,lisbon,cruise,4,yes,beach,business,4433
+10,athens,car,3,yes,mountain,leisure,1415
+3,sydney,ferry,7,yes,nature,leisure,3580
+2,reykjavik,motorcycle,1,yes,mountain,business,1981
+12,barcelona,plane,4,no,nature,business,3285
+15,prague,plane,5,no,mountain,leisure,2639
+14,istanbul,plane,6,no,mountain,business,4444
+14,tokyo,bus,5,no,mountain,business,3089
+10,rome,bus,4,yes,mountain,business,2638
+12,cancun,car,3,no,mountain,business,1709
+9,tokyo,train,8,no,beach,leisure,3140
+25,bangkok,plane,4,yes,nature,leisure,3660
+21,bali,ferry,1,yes,city,leisure,2425
+18,prague,bus,5,yes,mountain,business,4595
+4,reykjavik,plane,7,yes,beach,business,4480
+24,cancun,cruise,6,no,nature,business,5220
+21,paris,plane,7,yes,city,leisure,6017
+7,reykjavik,bus,8,yes,mountain,leisure,3051
+9,athens,plane,6,yes,mountain,business,3796
+29,athens,motorcycle,3,yes,nature,business,5174
+22,sydney,car,5,no,city,leisure,2938
+16,cusco,train,5,no,mountain,leisure,3651
+11,amsterdam,bus,6,no,city,business,4079
+23,lisbon,motorcycle,6,yes,mountain,leisure,4163
+15,paris,motorcycle,7,yes,city,leisure,2665
+22,tokyo,ferry,3,no,mountain,business,2413
+10,paris,bus,7,no,city,business,3725
+10,tokyo,bus,8,no,city,business,3375
+29,barcelona,plane,1,yes,mountain,business,3885
+26,prague,motorcycle,3,no,city,business,3497
+19,marrakech,ferry,6,no,mountain,leisure,3491
+0,lisbon,train,4,no,nature,leisure,2722
+29,bali,plane,7,no,city,business,6207
+3,prague,car,7,yes,mountain,business,4217
+11,tokyo,bus,1,no,nature,leisure,1429
+2,prague,bus,1,yes,nature,business,2454
+26,bangkok,train,3,no,beach,business,2985
+14,paris,bus,7,yes,beach,leisure,4032
+30,marrakech,ferry,1,no,mountain,business,3191
+12,bangkok,car,3,no,beach,business,2343
+21,bangkok,motorcycle,2,no,nature,business,2605
+7,cancun,plane,6,no,beach,leisure,2551
+12,amsterdam,plane,2,yes,nature,business,2678
+25,new york,plane,1,no,city,leisure,2180
+23,reykjavik,train,8,no,city,business,2721
+6,tokyo,car,4,no,city,leisure,1977
+26,dubai,ferry,6,no,city,business,4592
+23,cancun,ferry,5,no,nature,business,3337
+28,vancouver,bus,5,no,nature,business,2526
+12,paris,motorcycle,6,no,nature,business,3458
+26,vancouver,plane,7,yes,nature,leisure,4990
+1,cape town,cruise,8,yes,city,leisure,4044
+25,cape town,car,3,yes,mountain,business,3325
+18,istanbul,train,2,no,mountain,business,2391
+5,athens,motorcycle,4,yes,beach,leisure,1860
+14,cape town,car,1,no,beach,leisure,1133
+11,rome,plane,5,yes,nature,leisure,2870
+23,marrakech,plane,7,yes,mountain,leisure,5839
+22,new york,bus,5,yes,beach,leisure,3499
+27,marrakech,motorcycle,8,yes,mountain,leisure,4503
+14,barcelona,train,3,no,city,leisure,2092
+6,rome,train,7,no,beach,leisure,2188
+29,athens,train,2,no,nature,business,3292
+29,paris,motorcycle,2,yes,city,leisure,2758
+28,reykjavik,train,5,yes,nature,leisure,5205
+19,bangkok,ferry,5,no,nature,leisure,3628
+15,prague,ferry,1,yes,city,leisure,2818
+14,barcelona,train,3,no,beach,leisure,1830
+25,tokyo,train,4,yes,city,business,3200
+12,marrakech,car,4,no,nature,leisure,2106
+7,athens,bus,5,no,city,business,2789
+1,lisbon,cruise,7,yes,mountain,business,4534
+18,prague,car,5,yes,mountain,leisure,2934
+1,marrakech,train,6,yes,beach,leisure,3611
+6,vancouver,bus,5,yes,mountain,leisure,2746
+19,vancouver,car,6,no,beach,business,3469
+1,paris,motorcycle,3,yes,beach,leisure,1527
+2,dubai,ferry,5,yes,mountain,leisure,3342
+11,new york,car,4,yes,city,leisure,2238
+7,reykjavik,plane,4,yes,city,leisure,3903
+1,reykjavik,motorcycle,1,yes,beach,business,2019
+6,bali,bus,5,yes,nature,business,3491
+30,prague,bus,4,no,city,business,4183
+22,tokyo,plane,5,no,nature,business,4070
+14,vancouver,cruise,3,yes,city,leisure,3457
+1,istanbul,cruise,2,yes,nature,business,2749
+25,barcelona,plane,6,no,mountain,business,4721
+5,vancouver,plane,3,yes,mountain,leisure,2181
+14,marrakech,bus,2,no,beach,business,2269
+20,reykjavik,cruise,7,no,nature,business,2715
+27,bali,motorcycle,2,yes,beach,leisure,2389
+29,barcelona,car,5,yes,beach,business,5900
+19,paris,motorcycle,7,no,beach,leisure,2881
+12,sydney,plane,1,yes,nature,business,2067
+5,vancouver,cruise,7,yes,beach,leisure,3769
+8,sydney,ferry,6,yes,beach,business,3596
+30,bali,train,2,yes,mountain,business,3735
+4,vancouver,car,6,yes,mountain,business,3827
+9,cape town,train,8,yes,beach,business,3805
+2,marrakech,ferry,7,yes,beach,business,2415
+21,marrakech,motorcycle,7,no,mountain,business,3714
+4,amsterdam,bus,6,yes,city,business,2833
+11,bali,bus,6,yes,mountain,leisure,3367
+11,sydney,bus,1,yes,nature,business,1979
+19,marrakech,cruise,5,yes,nature,business,5102
+27,vancouver,car,5,no,beach,business,2347
+27,cusco,train,5,yes,beach,business,4044
+1,prague,train,2,no,mountain,business,1080
+17,paris,ferry,5,yes,mountain,business,4000
+21,lisbon,plane,8,no,mountain,business,4098
+26,reykjavik,bus,3,yes,mountain,leisure,3198
+14,bali,ferry,2,yes,city,leisure,2802
+9,reykjavik,cruise,3,yes,beach,leisure,2668
+12,vancouver,train,5,yes,city,business,3593
+21,bali,motorcycle,2,no,mountain,leisure,2204
+30,prague,ferry,7,no,beach,business,3263
+4,bali,train,3,no,mountain,business,1849
+23,amsterdam,motorcycle,8,no,nature,leisure,2383
+5,dubai,plane,3,yes,nature,business,2947
+1,bangkok,ferry,6,no,mountain,business,2727
+28,tokyo,ferry,5,no,beach,business,4563
+1,barcelona,motorcycle,2,no,nature,leisure,934
+3,prague,car,8,no,beach,leisure,2715
+12,istanbul,plane,6,yes,nature,leisure,2930
+7,prague,motorcycle,7,no,mountain,leisure,3003
+2,cape town,motorcycle,2,no,city,business,1292
+11,cancun,car,4,no,city,leisure,1973
+20,dubai,ferry,1,yes,nature,business,3039
+7,bangkok,ferry,7,yes,city,business,5404
+28,istanbul,bus,1,yes,city,business,2812
+6,new york,plane,8,no,mountain,business,3971
+2,cusco,ferry,2,yes,mountain,business,2779
+9,new york,ferry,6,no,mountain,leisure,2365
+23,lisbon,motorcycle,1,no,nature,leisure,1392
+7,barcelona,train,4,no,mountain,business,2526
+25,athens,bus,2,no,mountain,business,2914
+17,istanbul,cruise,2,yes,mountain,business,3673
+1,cape town,train,7,yes,nature,leisure,3292
+2,marrakech,ferry,6,yes,mountain,leisure,2447
+27,athens,cruise,1,yes,beach,business,3251
+8,new york,ferry,5,no,beach,leisure,1347
+6,cape town,plane,8,no,mountain,business,4112
+19,prague,train,6,yes,mountain,leisure,4399
+1,vancouver,car,7,no,city,leisure,2058
+22,bangkok,motorcycle,5,yes,beach,business,4834
+3,rome,plane,4,yes,beach,business,3231
+13,tokyo,car,5,yes,nature,leisure,3184
+4,lisbon,train,6,yes,mountain,leisure,2492
+18,new york,train,6,yes,city,leisure,4144
+21,istanbul,ferry,8,yes,city,leisure,4008
+20,paris,plane,1,yes,nature,business,3421
+4,cape town,cruise,5,no,beach,leisure,2508
+15,vancouver,plane,8,no,beach,leisure,4550
+6,cape town,train,7,yes,beach,business,3526
+30,cancun,plane,1,no,nature,leisure,1861
+22,istanbul,car,1,no,nature,business,2012
+1,reykjavik,cruise,8,yes,nature,business,5451
+5,marrakech,cruise,2,no,mountain,business,1662
+2,bali,bus,2,yes,city,leisure,2142
+4,new york,ferry,3,no,mountain,leisure,1608
+22,new york,motorcycle,2,yes,nature,leisure,3302
+8,lisbon,car,8,yes,nature,leisure,3546
+29,marrakech,motorcycle,2,yes,nature,business,3009
+20,bali,car,4,yes,beach,business,4636
+6,prague,plane,7,yes,nature,leisure,3500
+2,prague,train,1,yes,mountain,business,2327
+9,lisbon,plane,5,no,mountain,leisure,2468
+19,barcelona,plane,6,no,nature,leisure,2981
+20,tokyo,motorcycle,1,yes,city,business,3331
+24,cape town,motorcycle,6,yes,mountain,leisure,2970
+16,dubai,ferry,4,yes,nature,business,3832
+30,marrakech,train,2,yes,city,leisure,3617
+25,bangkok,bus,4,no,mountain,business,3534
+16,new york,motorcycle,3,no,nature,leisure,1501
+10,bangkok,bus,5,yes,mountain,leisure,3133
+21,cancun,ferry,2,yes,nature,business,3421
+9,athens,cruise,6,yes,nature,leisure,3600
+26,athens,motorcycle,3,no,mountain,business,2304
+15,amsterdam,cruise,6,no,nature,business,4017
+26,new york,cruise,7,yes,city,business,5030
+13,new york,train,5,yes,mountain,business,4839
+7,amsterdam,bus,3,no,nature,leisure,1925
+1,lisbon,plane,8,yes,nature,business,6306
+27,lisbon,bus,5,no,mountain,business,3795
+26,cusco,cruise,7,no,city,leisure,4452
+11,amsterdam,ferry,6,yes,mountain,business,4308
+29,sydney,bus,1,yes,mountain,leisure,2545
+26,dubai,car,5,no,beach,business,3998
+29,bali,motorcycle,3,yes,mountain,leisure,3137
+3,tokyo,bus,5,no,city,leisure,1003
+15,new york,ferry,3,yes,city,leisure,2918
+17,tokyo,motorcycle,7,no,city,leisure,3283
+6,cancun,train,5,yes,city,business,3648
+2,prague,motorcycle,7,no,nature,leisure,2116
+5,cancun,car,4,yes,city,business,3527
+16,sydney,plane,6,no,nature,leisure,2478
+18,bali,car,3,no,nature,leisure,1942
+6,prague,ferry,4,yes,city,leisure,2295
+28,cape town,train,4,no,mountain,business,3834
+26,istanbul,plane,6,no,city,business,5205
+12,bangkok,plane,8,no,nature,holiday,4554
+24,sydney,motorcycle,8,yes,mountain,business,4770
+9,bali,bus,5,yes,beach,business,3599
+6,tokyo,bus,7,no,beach,leisure,3071
+2,amsterdam,cruise,4,yes,nature,leisure,3372
+23,bali,train,8,no,city,leisure,3090
+26,vancouver,ferry,4,no,mountain,leisure,2549
+28,lisbon,train,4,no,beach,business,3512
+21,sydney,plane,4,no,beach,leisure,3075
+7,marrakech,plane,6,no,city,business,2979
+29,tokyo,motorcycle,2,no,city,business,2478
+24,paris,car,3,no,mountain,business,1816
+29,athens,car,7,yes,city,business,4829
+23,dubai,ferry,4,no,beach,business,3581
+14,barcelona,car,4,no,city,business,2661
+29,istanbul,car,6,no,mountain,business,4155
+22,amsterdam,ferry,6,yes,mountain,leisure,5000
+20,cancun,car,2,no,mountain,business,2493
+16,cancun,train,6,yes,city,leisure,3795
+19,prague,bus,4,no,city,business,3208
+4,cancun,bus,6,yes,nature,leisure,3069
+5,prague,plane,8,no,beach,business,3717
+11,sydney,plane,4,no,nature,business,2659
+23,lisbon,cruise,3,yes,beach,leisure,3376
+11,dubai,train,3,yes,city,leisure,2189
+29,barcelona,ferry,7,no,beach,business,4126
+16,paris,plane,8,yes,mountain,business,5726
+27,vancouver,train,1,no,city,business,2234
+7,paris,motorcycle,3,no,nature,business,2047
+27,cancun,motorcycle,6,yes,mountain,business,9999999
+20,new york,ferry,4,no,city,leisure,2155
+16,cusco,plane,2,yes,beach,business,4170
+4,dubai,car,2,yes,mountain,leisure,1904
+6,rome,plane,8,yes,city,business,3706
+6,amsterdam,train,4,no,nature,business,2463
+9,barcelona,bus,1,no,city,business,1083
+24,reykjavik,plane,3,yes,nature,business,3361
+24,barcelona,ferry,7,yes,mountain,leisure,4647
+2,prague,cruise,4,yes,mountain,business,2795
+3,tokyo,ferry,3,yes,mountain,business,2834
+13,bali,train,8,yes,beach,leisure,3989
+22,tokyo,plane,1,yes,nature,leisure,3300
+19,reykjavik,car,4,no,mountain,leisure,2159
+21,barcelona,ferry,3,no,nature,business,3482
+14,amsterdam,plane,5,no,city,business,1697
+27,barcelona,plane,8,no,beach,leisure,5598
+24,amsterdam,ferry,5,no,nature,business,3630
+30,lisbon,car,5,no,city,leisure,3410
+19,new york,ferry,3,yes,beach,business,3668
+6,sydney,motorcycle,1,no,nature,business,1575
+22,cancun,train,3,yes,nature,leisure,3360
+24,prague,bus,3,yes,mountain,business,4000
+18,vancouver,cruise,3,no,mountain,leisure,3131
+14,tokyo,motorcycle,6,yes,beach,leisure,3679
+6,new york,train,7,yes,mountain,business,4323
+2,rome,ferry,8,no,beach,business,2713
+22,tokyo,train,5,no,nature,business,2588
+16,new york,train,3,yes,city,leisure,3532
+20,cusco,motorcycle,6,no,beach,business,3782
+15,dubai,train,5,yes,mountain,leisure,3115
+9,rome,bus,6,no,nature,business,3179
+27,lisbon,bus,1,no,beach,leisure,1948
+20,reykjavik,ferry,4,yes,mountain,leisure,3992
+11,cancun,plane,3,no,city,business,2221
+29,lisbon,motorcycle,3,yes,city,business,3191
+10,bangkok,bus,4,yes,nature,leisure,2840
+5,reykjavik,motorcycle,5,no,city,leisure,1691
+17,tokyo,car,5,yes,city,leisure,3925
+28,cusco,car,2,no,beach,leisure,2116
+16,amsterdam,car,2,no,nature,leisure,1943
+17,sydney,cruise,1,yes,city,business,2832
+24,bangkok,train,7,yes,nature,leisure,4444
+27,dubai,ferry,5,no,mountain,leisure,3246
+7,amsterdam,train,6,yes,nature,business,3252
+26,athens,motorcycle,3,no,beach,leisure,2597
+25,cape town,train,8,no,beach,business,3524
+24,athens,bus,1,yes,nature,leisure,2795
+17,cape town,motorcycle,5,no,nature,leisure,2870
+10,reykjavik,ferry,2,yes,city,leisure,1916
+20,cusco,train,1,yes,beach,business,3333
+28,tokyo,ferry,1,yes,nature,business,3950
+2,tokyo,bus,5,yes,city,leisure,2884
+30,amsterdam,car,8,no,nature,business,3176
+23,sydney,car,2,no,mountain,leisure,1870
+28,lisbon,ferry,8,yes,city,leisure,3290
+22,prague,cruise,6,yes,beach,leisure,4604
+18,404,cruise,4,yes,beach,business,3535
+5,cusco,motorcycle,4,yes,mountain,leisure,1845
+30,paris,plane,3,yes,beach,business,4247
+27,marrakech,plane,1,yes,nature,leisure,2810
+26,prague,train,1,no,city,business,2473
+11,cape town,bus,7,no,city,business,3960
+6,reykjavik,cruise,6,yes,mountain,leisure,4776
+15,bangkok,motorcycle,5,no,city,business,2772
+9,dubai,car,7,no,city,business,3988
+17,lisbon,ferry,6,yes,beach,business,3657
+11,dubai,cruise,1,no,mountain,business,1912
+18,tokyo,bus,6,yes,city,leisure,4311
+30,tokyo,ferry,2,no,nature,leisure,2870
+24,cusco,bus,6,no,mountain,leisure,4239
+27,istanbul,bus,4,no,mountain,leisure,2643
+18,reykjavik,bus,4,no,beach,business,2085
+29,amsterdam,cruise,8,yes,city,leisure,5062
+9,paris,bus,8,no,city,leisure,2568
+15,barcelona,bus,3,yes,city,leisure,2548
+14,cancun,motorcycle,1,yes,city,leisure,2083
+29,athens,car,3,yes,city,leisure,2557
+24,vancouver,cruise,6,no,beach,business,4550
+2,amsterdam,cruise,5,yes,city,leisure,3564
+7,dubai,bus,2,yes,beach,business,2341
+9,rome,train,7,yes,nature,leisure,3838
+19,reykjavik,motorcycle,5,yes,beach,leisure,2988
+21,athens,motorcycle,6,yes,city,leisure,4553
+7,vancouver,bus,8,no,city,business,3397
+20,new york,motorcycle,4,yes,beach,business,3969
+7,tokyo,12,8,no,beach,leisure,2984
+22,barcelona,bus,1,yes,city,business,3288
+7,tokyo,train,4,no,mountain,leisure,1492
+13,prague,motorcycle,5,no,nature,leisure,2192
+10,athens,bus,2,no,nature,business,1541
+14,bali,car,3,no,beach,business,2421
+25,prague,train,7,no,nature,leisure,3863
+17,paris,motorcycle,1,no,city,business,1782
+17,bali,cruise,2,no,beach,leisure,2157
+14,paris,ferry,4,no,beach,business,1327
+22,athens,train,2,yes,beach,business,4450
+21,reykjavik,train,3,no,mountain,leisure,2462
+18,athens,car,8,yes,city,leisure,4374
+11,prague,plane,1,no,nature,business,1942
+8,istanbul,bus,5,no,city,business,1830
+11,cape town,plane,8,yes,mountain,leisure,4440
+16,tokyo,motorcycle,5,yes,city,business,3235
+26,bangkok,bus,7,yes,city,business,5336
+18,cape town,car,6,yes,nature,business,3501
+1,marrakech,car,1,no,city,leisure,552
+18,bali,cruise,4,yes,city,leisure,3804
+11,marrakech,cruise,3,yes,mountain,business,4351
+16,new york,plane,2,no,city,leisure,1588
+24,bali,ferry,7,no,nature,leisure,4504
+4,paris,train,6,no,mountain,leisure,2328
+24,tokyo,train,6,no,mountain,leisure,3561
+1,reykjavik,bus,7,yes,city,business,4158
+30,paris,car,1,no,city,business,2508
+7,bali,ferry,4,no,beach,business,2641
+28,barcelona,cruise,8,no,city,leisure,4490
+14,paris,plane,2,yes,mountain,leisure,1940
+15,dubai,ferry,7,no,beach,business,3569
+14,lisbon,cruise,2,no,mountain,business,2615
+3,tokyo,ferry,7,yes,beach,business,3762
+8,rome,train,6,yes,city,business,3441
+25,cape town,ferry,3,yes,mountain,business,3236
+25,dubai,bus,1,no,beach,business,2396
+14,athens,train,1,no,beach,business,1339
+30,vancouver,car,5,yes,beach,business,4904
+15,new york,car,3,no,beach,leisure,2157
+14,amsterdam,bus,1,yes,nature,leisure,2164
+18,amsterdam,train,8,yes,city,leisure,5177
+12,athens,car,3,yes,city,business,2685
+21,istanbul,car,3,no,nature,leisure,1293
+9,tokyo,train,1,no,mountain,business,1946
+6,cancun,car,4,no,city,leisure,1275
+19,new york,ferry,2,no,nature,leisure,1650
+6,rome,train,6,no,nature,leisure,2368
+2,marrakech,car,5,yes,city,business,2788
+11,athens,motorcycle,3,no,nature,leisure,1856
+21,dubai,plane,2,no,mountain,leisure,2155
+30,marrakech,motorcycle,1,no,nature,business,2886
+7,prague,train,4,yes,beach,leisure,1945
+5,vancouver,car,1,no,mountain,leisure,502
+14,bali,cruise,8,no,city,leisure,4507
+21,cancun,train,5,no,city,business,3536
+25,new york,ferry,3,yes,city,business,4714
+12,istanbul,cruise,5,true,city,business,4022
+23,paris,cruise,2,no,beach,leisure,2771
+22,bangkok,car,4,no,nature,leisure,2689
+14,new york,ferry,1,yes,mountain,business,2151
+18,cape town,car,4,yes,city,leisure,3154
+5,bangkok,bus,2,yes,beach,leisure,2239
+14,bali,cruise,6,no,beach,leisure,3244
+6,marrakech,train,4,yes,beach,business,3138
+22,cusco,motorcycle,2,no,nature,leisure,2069
+29,vancouver,motorcycle,8,no,city,leisure,4106
+26,new york,plane,2,yes,mountain,business,4013
+19,istanbul,train,1,yes,beach,business,2750
+24,bangkok,bus,4,no,mountain,leisure,3013
+12,cancun,car,7,no,beach,leisure,3496
+5,paris,plane,2,no,city,business,1724
+17,lisbon,motorcycle,5,yes,nature,leisure,3721
+30,bali,plane,4,yes,beach,business,4578
+22,dubai,train,8,no,beach,business,4023
+8,tokyo,bus,5,no,mountain,leisure,2554
+27,marrakech,bus,1,no,nature,business,3118
+21,marrakech,train,4,no,city,business,2811
+2,cancun,car,2,yes,mountain,business,2069
+5,dubai,plane,2,no,city,leisure,1084
+28,paris,motorcycle,6,yes,beach,business,3793
+28,cusco,cruise,7,no,nature,leisure,3403
+1,new york,cruise,6,yes,beach,business,3678
+1,sydney,motorcycle,7,no,beach,business,2601
+3,new york,train,1,no,city,business,1282
+5,lisbon,ferry,2,no,city,leisure,372
+6,cusco,ferry,8,yes,urban-beach,leisure,3612
+26,cusco,bus,1,no,beach,business,2240
+29,vancouver,plane,6,yes,nature,business,5699
+24,rome,motorcycle,3,no,beach,business,2276
+20,cancun,cruise,6,yes,city,business,4419
+1,new york,train,7,no,city,business,3025
+2,rome,bus,3,no,city,leisure,1584
+6,sydney,ferry,3,yes,city,leisure,2869
+29,bali,ferry,4,no,beach,business,3542
+7,cusco,cruise,5,no,city,leisure,3055
+5,amsterdam,car,3,yes,nature,leisure,1643
+26,paris,car,8,no,nature,leisure,3866
+13,reykjavik,ferry,5,yes,city,leisure,2509
+8,cancun,plane,4,yes,city,leisure,4375
+26,bali,ferry,8,no,mountain,business,4559
+25,bali,bus,3,no,nature,business,2529
+29,dubai,motorcycle,5,yes,city,leisure,3827
+1,barcelona,car,4,yes,mountain,business,2846
+26,barcelona,ferry,7,yes,nature,leisure,6318
+22,vancouver,ferry,4,yes,nature,leisure,3556
+2,barcelona,cruise,3,no,mountain,leisure,1520
+19,rome,plane,1,no,city,business,2939
+10,athens,plane,6,yes,beach,business,4273
+17,amsterdam,bus,4,yes,beach,leisure,3610
+20,amsterdam,cruise,2,yes,mountain,leisure,3099
+17,cape town,train,4,yes,beach,business,4938
+2,cusco,plane,7,yes,mountain,business,4906
+7,barcelona,motorcycle,5,no,city,leisure,2541
+13,cape town,car,8,no,mountain,leisure,2690
+5,reykjavik,plane,3,yes,city,leisure,2519
+11,bangkok,bus,2,no,city,business,1852
+12,dubai,train,6,yes,city,leisure,3615
+28,paris,ferry,6,no,beach,leisure,3629
+16,dubai,motorcycle,4,no,mountain,business,2809
+21,paris,bus,5,yes,nature,business,4393
+26,istanbul,cruise,2,no,beach,leisure,2693
+8,marrakech,cruise,7,no,beach,business,3864
+28,paris,car,1,no,nature,business,2551
+8,cancun,motorcycle,3,no,mountain,leisure,1616
+8,marrakech,ferry,2,yes,beach,business,1844
+11,new york,plane,8,yes,beach,leisure,4711
+7,marrakech,motorcycle,2,yes,mountain,business,2119
+5,marrakech,bus,7,yes,nature,business,3375
+8,tokyo,train,3,yes,nature,business,2483
+29,cusco,motorcycle,5,yes,beach,leisure,4293
+2,bali,ferry,1,yes,city,business,2926
+3,sydney,plane,2,no,nature,leisure,1833
+18,dubai,car,6,no,nature,business,2749
+2,rome,cruise,7,yes,nature,business,5308
+21,barcelona,train,7,yes,nature,business,4267
+3,vancouver,ferry,8,no,nature,business,2787
+1,cusco,train,6,yes,mountain,leisure,2966
+19,bangkok,ferry,6,no,beach,business,4197
+3,tokyo,train,6,no,beach,leisure,2220
+23,new york,cruise,6,no,nature,leisure,3320
+13,marrakech,plane,5,yes,nature,leisure,3797
+27,athens,ferry,5,no,beach,leisure,3731
+19,reykjavik,train,3,yes,nature,business,3800
+13,dubai,motorcycle,3,no,beach,leisure,1894
+1,rome,motorcycle,5,yes,mountain,business,2678
+2,lisbon,car,8,yes,beach,leisure,4189
+20,dubai,cruise,6,yes,mountain,business,5085
+1,barcelona,cruise,5,no,nature,leisure,1593
+8,bangkok,train,7,yes,mountain,business,4883
+11,vancouver,ferry,2,no,nature,business,2121
+2,marrakech,ferry,1,yes,city,leisure,1201
+22,marrakech,plane,6,yes,mountain,business,5207
+18,tokyo,bus,7,no,mountain,business,3793
+9,marrakech,bus,6,no,beach,leisure,1941
+12,istanbul,ferry,6,no,nature,business,3814
+7,amsterdam,bus,3,no,city,leisure,1221
+4,rome,car,7,no,city,leisure,2300
+20,cape town,train,5,no,beach,business,3338
+17,barcelona,car,6,yes,nature,leisure,3053
+25,reykjavik,motorcycle,3,yes,city,leisure,4305
+28,marrakech,car,5,yes,nature,business,4605
+16,paris,bus,6,no,beach,business,3425
+1,istanbul,ferry,5,no,nature,business,2232
+28,sydney,car,6,yes,city,business,3974
+6,sydney,train,2,no,nature,leisure,1094
+12,lisbon,plane,3,yes,mountain,leisure,3477
+18,cancun,train,1,yes,nature,business,3576
+16,dubai,plane,5,yes,mountain,business,4137
+26,barcelona,cruise,6,yes,beach,leisure,4064
+23,prague,car,2,yes,mountain,leisure,2745
+8,rome,cruise,6,no,nature,leisure,1762
+2,istanbul,car,6,yes,beach,leisure,2308
+9,lisbon,motorcycle,1,no,nature,leisure,840
+29,lisbon,plane,1,yes,nature,business,4168
+5,cancun,car,2,yes,nature,business,2318
+18,reykjavik,train,4,no,nature,leisure,1465
+29,reykjavik,train,7,no,beach,leisure,4214
+29,bali,car,1,no,mountain,leisure,1602
+23,prague,train,6,no,beach,business,3802
+26,vancouver,ferry,8,yes,mountain,business,5582
+2,rome,train,8,yes,beach,business,3882
+8,athens,plane,5,no,beach,leisure,2632
+24,paris,plane,6,yes,beach,leisure,5504
+29,cancun,cruise,5,yes,nature,leisure,3234
+7,dubai,plane,6,no,nature,business,2558
+3,cusco,bus,3,no,beach,business,1599
+20,vancouver,train,6,yes,city,leisure,4333
+10,new york,motorcycle,5,yes,mountain,business,3312
+25,athens,ferry,7,no,city,business,5067
+12,dubai,train,1,yes,nature,business,3072
+8,vancouver,train,1,no,nature,business,1529
+18,lisbon,car,5,yes,beach,business,4389
+24,paris,bus,8,no,nature,business,3315
+3,new york,ferry,8,no,mountain,business,2793
+25,athens,cruise,2,yes,beach,leisure,3418
+8,bali,bus,7,no,city,business,2278
+28,cancun,motorcycle,1,yes,city,business,3593
+14,new york,cruise,1,no,city,business,2270
+18,istanbul,plane,5,yes,city,business,4504
+13,sydney,car,7,yes,beach,leisure,5228
+18,athens,car,8,yes,nature,business,4657
+9,sydney,bus,3,yes,city,business,2802
+29,bali,motorcycle,8,no,mountain,leisure,3326
+27,bali,car,5,yes,city,leisure,4152
+14,bali,bus,3,yes,mountain,business,3421
+29,bangkok,plane,3,yes,beach,leisure,3318
+23,sydney,car,5,yes,city,leisure,3189
+27,cancun,motorcycle,4,no,beach,business,3481
+8,dubai,bus,5,no,nature,business,2033
+6,vancouver,bus,5,no,beach,business,2763
+20,bali,motorcycle,5,no,city,leisure,2329
+2,istanbul,plane,6,yes,beach,business,2339
+2,bangkok,car,1,yes,mountain,leisure,1757
+25,istanbul,bus,8,yes,beach,business,4885
+10,cancun,car,8,no,city,leisure,3483
+28,bali,plane,2,no,nature,business,3341
+10,rome,bus,3,no,beach,leisure,1211
+20,sydney,cruise,8,yes,nature,leisure,4691
+22,vancouver,train,3,no,beach,business,2429
+10,reykjavik,motorcycle,2,no,nature,leisure,1300
+12,amsterdam,motorcycle,5,no,nature,business,3106
+1,athens,car,1,no,mountain,leisure,406
+20,tokyo,car,3,yes,beach,business,4725
+25,dubai,car,1,yes,beach,business,2532
+26,prague,train,3,yes,nature,business,3959
+7,paris,car,2,no,city,business,1721
+24,new york,plane,8,no,city,leisure,2829
+7,bali,ferry,2,no,nature,business,2020
+12,new york,motorcycle,6,no,nature,leisure,2966
+19,cancun,ferry,5,no,nature,leisure,2752
+9,vancouver,ferry,8,yes,nature,leisure,3496
+8,tokyo,cruise,8,no,city,leisure,4483
+6,bangkok,car,3,no,nature,business,1776
+26,barcelona,train,5,yes,mountain,business,4341
+11,new york,car,8,yes,nature,leisure,4376
+7,istanbul,car,5,no,beach,business,2169
+21,cusco,motorcycle,2,no,mountain,leisure,2198
+29,barcelona,bus,2,no,mountain,business,2523
+29,rome,train,3,yes,beach,leisure,3815
+12,tokyo,bus,6,yes,beach,leisure,3833
+12,cancun,cruise,3,yes,beach,leisure,3852
+26,barcelona,ferry,5,no,mountain,business,3492
+22,bangkok,plane,3,yes,mountain,business,3918
+4,sydney,motorcycle,1,no,city,business,1377
+15,bangkok,bus,2,no,beach,leisure,1781
+19,istanbul,car,5,no,beach,business,2910
+28,bali,train,6,no,beach,business,4645
+2,bangkok,train,3,no,mountain,business,2009
+1,cancun,motorcycle,6,no,beach,leisure,1517
+16,cusco,train,2,yes,mountain,business,2300
+12,bali,bus,7,no,nature,leisure,2940
+27,marrakech,bus,8,no,beach,business,5087
+17,bangkok,ferry,5,no,city,business,2671
+12,bangkok,ferry,5,yes,nature,leisure,3385
+15,new york,car,3,no,city,business,2313
+7,reykjavik,bus,7,yes,city,leisure,2737
+25,new york,car,5,no,mountain,leisure,3068
+10,cusco,plane,7,yes,mountain,leisure,2849
+4,tokyo,car,8,yes,beach,business,3882
+24,vancouver,bus,6,no,nature,business,3215
+8,dubai,cruise,3,no,beach,business,3485
+2,cape town,bus,1,yes,mountain,leisure,1395
+30,tokyo,motorcycle,6,yes,nature,business,5473
+5,dubai,bus,1,no,beach,leisure,724
+19,vancouver,motorcycle,6,yes,beach,leisure,4096
+12,vancouver,train,7,no,nature,leisure,3165
+18,prague,ferry,3,yes,city,leisure,2048
+10,tokyo,cruise,5,yes,city,leisure,2695
+11,marrakech,car,7,no,city,business,2575
+22,amsterdam,cruise,2,yes,mountain,leisure,3688
+30,bangkok,motorcycle,4,no,nature,business,3951
+8,new york,bus,4,yes,mountain,business,2810
+13,sydney,motorcycle,1,no,beach,business,1445
+24,dubai,bus,2,no,mountain,business,2415
+10,prague,car,4,no,mountain,business,1882
+2,barcelona,cruise,6,no,beach,leisure,2275
+5,new york,bus,7,yes,mountain,business,4269
+2,lisbon,car,1,yes,mountain,leisure,1845
+27,barcelona,motorcycle,1,yes,city,leisure,3573
+12,vancouver,bus,3,yes,city,leisure,2591
+4,reykjavik,motorcycle,5,no,beach,leisure,1669
+14,athens,motorcycle,7,yes,nature,business,4937
+20,vancouver,cruise,7,no,city,leisure,3411
+21,lisbon,train,6,y,beach,business,4686
+7,tokyo,ferry,4,no,city,leisure,1776
+9,rome,cruise,4,no,beach,leisure,2388
+2,barcelona,plane,1,no,beach,leisure,1029
+19,sydney,plane,4,yes,mountain,leisure,4375
+25,cusco,ferry,1,no,mountain,leisure,2045
+4,dubai,ferry,1,yes,nature,business,1912
+14,marrakech,bus,3,yes,beach,business,3427
+5,reykjavik,plane,8,yes,mountain,business,5735
+1,prague,bus,3,no,city,business,1727
+8,bali,car,5,yes,city,business,3439
+24,sydney,bus,4,yes,beach,business,3738
+2,barcelona,motorcycle,7,yes,city,business,3011
+11,dubai,train,6,yes,city,leisure,3558
+22,marrakech,bus,8,no,beach,leisure,3227
+4,bali,train,1,no,nature,leisure,926
+24,rome,train,2,yes,mountain,leisure,2296
+26,new york,plane,2,yes,city,leisure,2776
+23,dubai,cruise,5,yes,beach,leisure,5448
+21,bali,motorcycle,3,yes,nature,business,3448
+7,sydney,motorcycle,1,yes,beach,leisure,1757
+24,bali,car,5,no,city,leisure,2825
+25,bangkok,car,1,no,nature,business,2544
+28,bali,train,5,yes,city,leisure,2652
+1,cape town,motorcycle,6,yes,city,business,4044
+6,prague,train,2,yes,beach,business,2647
+28,cusco,train,2,yes,beach,business,3344
+21,vancouver,car,2,no,mountain,business,2196
+29,lisbon,cruise,5,no,nature,leisure,4172
+3,cape town,plane,8,yes,7,business,5087
+3,dubai,train,2,yes,nature,business,2161
+11,vancouver,car,5,no,nature,business,2831
+1,bali,ferry,6,no,nature,leisure,2316
+7,bali,train,7,yes,mountain,leisure,3177
+19,tokyo,bus,5,yes,beach,business,3313
+6,athens,bus,1,yes,beach,business,2310
+15,cusco,cruise,7,no,nature,business,4425
+3,bali,plane,7,yes,mountain,leisure,2979
+10,cape town,plane,8,no,nature,leisure,2985
+16,bali,ferry,8,yes,mountain,leisure,4613
+19,istanbul,cruise,3,yes,beach,business,4641
+23,cusco,cruise,3,yes,mountain,business,3622
+22,sydney,plane,5,yes,mountain,business,6022
+2,tokyo,cruise,1,yes,mountain,business,2810
+13,paris,plane,8,no,beach,leisure,3368
+14,rome,plane,2,yes,mountain,business,3679
+6,istanbul,motorcycle,6,yes,nature,leisure,3487
+27,dubai,motorcycle,2,yes,city,leisure,2803
+26,prague,ferry,3,yes,city,leisure,3149
+11,vancouver,train,2,yes,nature,business,2555
+14,cape town,train,2,yes,nature,business,2723
+12,vancouver,ferry,4,no,beach,leisure,2228
+14,new york,car,1,yes,beach,leisure,2249
+26,cancun,ferry,5,no,beach,business,4541
+28,marrakech,motorcycle,4,yes,mountain,business,4044
+24,new york,motorcycle,1,yes,nature,business,3473
+24,vancouver,car,6,yes,city,leisure,4653
+20,sydney,motorcycle,8,no,beach,business,3608
+19,cancun,motorcycle,7,yes,beach,business,4842
+8,rome,ferry,2,yes,beach,leisure,2543
+15,vancouver,motorcycle,7,yes,nature,business,3822
+19,amsterdam,plane,2,yes,beach,business,2439
+18,cancun,train,1,yes,beach,business,2518
+14,vancouver,train,6,yes,city,leisure,3518
+5,bali,bus,6,yes,city,business,2900
+20,paris,bus,4,yes,beach,business,4660
+1,barcelona,cruise,8,no,beach,leisure,3695
+5,prague,cruise,6,yes,beach,business,4932

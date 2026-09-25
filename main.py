@@ -1,115 +1,124 @@
-"""Predicción visual del precio de viviendas de California."""
+"""Pipeline de limpieza y normalización del dataset de viajes."""
 
-# Importa la función que carga el conjunto de datos Wine incluido en scikit-learn.
-# Wine contiene análisis químicos de vinos y la clase a la que pertenece cada uno.
-from sklearn.datasets import fetch_california_housing
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, r2_score
-from sklearn.model_selection import train_test_split
+from __future__ import annotations
+
+import csv
+from pathlib import Path
+from statistics import mean
+from typing import Any
+
+INPUT_FILE = Path(__file__).with_name("travel_raw_dataset.csv")
+OUTPUT_FILE = Path(__file__).with_name("travel_clean_dataset.csv")
+NUMERIC_COLUMNS = {"trip_duration_days", "number_of_travelers", "budget_usd"}
+MISSING_VALUES = {"", "na", "n/a", "null", "none", "unknown"}
 
 
-def barra_precio(precio: float, maximo: float) -> str:
-    """Crea una barra sencilla para visualizar un precio en la terminal."""
-    longitud = max(1, round(precio / maximo * 30))
-    return "█" * longitud
+def _missing(value: Any) -> bool:
+    return value is None or str(value).strip().lower() in MISSING_VALUES
 
 
-def pedir_vivienda() -> list[float] | None:
-    """Pide al usuario las ocho características de una vivienda.
-
-    Devuelve None cuando el usuario escribe ``salir`` o deja la entrada vacía.
-    """
-    print("\nIntroduce los datos de una zona residencial")
-    print("Orden: " + ", ".join(FEATURE_NAMES))
-    print("Ejemplo: 8.3, 41, 6.5, 1.0, 322, 2.5, 37.9, -122.4")
-
-    texto = input("Datos (o 'salir'): ").strip()
-    if not texto or texto.lower() in {"salir", "exit", "q"}:
+def _normalise(column: str, value: str) -> Any:
+    value = value.strip()
+    if _missing(value):
         return None
-
-    try:
-        valores = [float(valor.strip()) for valor in texto.split(",")]
-    except ValueError:
-        print("Error: escribe solamente números separados por comas.")
-        return pedir_vivienda()
-
-    if len(valores) != len(FEATURE_NAMES):
-        print(f"Error: debes introducir exactamente {len(FEATURE_NAMES)} valores.")
-        return pedir_vivienda()
-
-    return valores
-
-
-FEATURE_NAMES = [
-    "MedInc",
-    "HouseAge",
-    "AveRooms",
-    "AveBedrms",
-    "Population",
-    "AveOccup",
-    "Latitude",
-    "Longitude",
-]
+    if column in NUMERIC_COLUMNS:
+        try:
+            number = int(value)
+        except ValueError:
+            # Un texto como ``two weeks`` o ``many`` no puede convertirse a
+            # número: se trata como dato ausente y seguirá la misma política
+            # de porcentaje que una celda vacía.
+            return None
+        # Una duración, un número de viajeros o un presupuesto no pueden ser
+        # negativos. Se convierten en ausentes para que se aplique la regla
+        # del porcentaje y, si corresponde, la imputación de la media.
+        return number if number >= 0 else None
+    return value.casefold()
 
 
-# Este bloque se ejecuta únicamente cuando ejecutamos directamente este archivo,
-# por ejemplo, mediante el comando: python main.py.
-if __name__ == "__main__":
-    # Carga el dataset. La primera ejecución puede descargarlo y guardarlo en
-    # la caché local de scikit-learn.
-    housing = fetch_california_housing()
+def _similar_mean(rows: list[dict[str, Any]], column: str, row: dict[str, Any]) -> float:
+    categorical = [
+        key for key in row
+        if key not in NUMERIC_COLUMNS and key != column and row[key] is not None
+    ]
+    values = [
+        other[column] for other in rows
+        if other[column] is not None
+        and all(other[key] == row[key] for key in categorical)
+    ]
+    if not values:
+        values = [other[column] for other in rows if other[column] is not None]
+    return mean(values)
 
-    # X contiene características de cada zona y y el precio medio de sus viviendas.
-    # El precio está expresado en cientos de miles de dólares.
-    X, y = housing.data, housing.target
 
-    print("=== Predicción de precios de viviendas en California ===")
-    print(f"Viviendas disponibles: {len(X):,}")
-    print(f"Características: {', '.join(housing.feature_names)}")
-    print("Precio objetivo: cientos de miles de dólares\n")
+def clean_travel_dataset(
+    input_file: Path = INPUT_FILE,
+    output_file: Path = OUTPUT_FILE,
+) -> tuple[int, int, int]:
+    """Lee una vez, limpia y escribe el resultado en otro CSV.
 
-    # Reservamos una parte de los datos para evaluar el modelo con ejemplos
-    # que no ha visto durante el entrenamiento.
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    Ausentes menores al 5% eliminan sus filas. Con 5% o más, ``trip_purpose``
+    recibe ``N/A``, las columnas numéricas reciben la media de semejantes y
+    cualquier otra columna categórica solicita una decisión explícita.
+    """
+    # El origen se abre exactamente una vez.
+    with input_file.open(encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        if reader.fieldnames is None:
+            raise ValueError("El CSV no contiene cabecera")
+        fieldnames = [name.strip() for name in reader.fieldnames]
+        raw_rows = [
+            {fieldnames[i]: row.get(original_name, "")
+             for i, original_name in enumerate(reader.fieldnames)}
+            for row in reader
+        ]
 
-    # Random Forest combina muchos árboles de decisión y funciona bien con
-    # datos tabulares y relaciones no lineales.
-    model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+    rows = [
+        {column: _normalise(column, row.get(column, "")) for column in fieldnames}
+        for row in raw_rows
+    ]
+    original_count = len(rows)
+    unique_values = dict.fromkeys(tuple(row[column] for column in fieldnames) for row in rows)
+    rows = [dict(zip(fieldnames, values)) for values in unique_values]
+    duplicate_count = original_count - len(rows)
 
-    model.fit(X_train, y_train)
-
-    predictions = model.predict(X_test)
-    error = mean_absolute_error(y_test, predictions)
-    score = r2_score(y_test, predictions)
-
-    print("Resultados del modelo")
-    print(f"Error medio: ${error * 100_000:,.0f}")
-    print(f"Puntuación R²: {score:.2f}\n")
-
-    print("Comparación: precio real frente a precio predicho")
-    max_price = max(max(y_test[:8]), max(predictions[:8]))
-    for i, (real, predicted) in enumerate(
-        zip(y_test[:8], predictions[:8]), start=1
-    ):
-        print(f"\nVivienda {i}")
-        print(f"  Real:     ${real * 100_000:>9,.0f} |{barra_precio(real, max_price)}")
-        print(
-            f"  Predicho: ${predicted * 100_000:>9,.0f} "
-            f"|{barra_precio(predicted, max_price)}"
+    ratios = {
+        column: sum(row[column] is None for row in rows) / len(rows)
+        for column in fieldnames
+    }
+    drop_columns = {
+        column for column, ratio in ratios.items() if 0 < ratio < 0.05
+    }
+    unknown_categorical = {
+        column for column, ratio in ratios.items()
+        if ratio >= 0.05 and column not in NUMERIC_COLUMNS and column != "trip_purpose"
+    }
+    if unknown_categorical:
+        columns = ", ".join(sorted(unknown_categorical))
+        raise ValueError(
+            f"Hay ausentes >= 5% en {columns}. "
+            "¿Qué valor categórico debemos usar para completarlos?"
         )
 
-    # A partir de aquí comienza la inferencia: el modelo ya está entrenado y
-    # permite probar predicciones con datos escritos por el usuario.
-    print("\n=== Prueba tu propio modelo ===")
-    print("El modelo está listo para hacer inferencias.")
-    while True:
-        vivienda = pedir_vivienda()
-        if vivienda is None:
-            print("Fin del programa.")
-            break
+    rows = [row for row in rows if all(row[column] is not None for column in drop_columns)]
+    for row in rows:
+        for column in fieldnames:
+            if row[column] is not None or column in drop_columns:
+                continue
+            if column == "trip_purpose":
+                row[column] = "N/A"
+            elif column in NUMERIC_COLUMNS:
+                row[column] = round(_similar_mean(rows, column, row), 2)
 
-        precio = model.predict([vivienda])[0]
-        print(f"\nPrecio estimado: ${precio * 100_000:,.0f}")
-        print(f"Valor en el dataset: {precio:.2f} cientos de miles de dólares")
+    with output_file.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    return len(raw_rows), duplicate_count, len(rows)
+
+
+if __name__ == "__main__":
+    read, duplicates, final = clean_travel_dataset()
+    print(f"CSV cargado una sola vez: {read} registros")
+    print(f"Duplicados eliminados: {duplicates}")
+    print(f"Resultado: {OUTPUT_FILE.name} ({final} registros)")
