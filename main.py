@@ -20,6 +20,7 @@ model = RandomForestClassifier(
     n_estimators=300,
     class_weight={0: 1.0, 1: 20.0},
     max_depth=10,
+    min_samples_split=2,
     min_samples_leaf=2,
     random_state=42
 )
