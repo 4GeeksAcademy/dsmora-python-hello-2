@@ -6,7 +6,10 @@ from typing import Any, Callable
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-TIMEOUT_SECONDS = 10
+TIMEOUT_SECONDS = 30
+USER_AGENT = "dsmora-python-hello-2/0.1"
+# Texto neutro que sustituye cualquier fallo de una API externa; no expone detalles técnicos.
+API_ERROR_TEXT = "No se pudo obtener la información en este momento."
 
 # Códigos WMO usados por Open-Meteo.
 WEATHER_CODES = {
@@ -48,10 +51,34 @@ class Tool:
         return self.function(**arguments)
 
 
-def _get_json(url: str, params: dict[str, Any]) -> dict[str, Any]:
-    query = urllib.parse.urlencode(params)
-    with urllib.request.urlopen(f"{url}?{query}", timeout=TIMEOUT_SECONDS) as response:
+def _open_json(request: urllib.request.Request) -> dict[str, Any]:
+    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def get_json(url: str, params: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
+    query = urllib.parse.urlencode(params)
+    request = urllib.request.Request(
+        f"{url}?{query}", headers={"User-Agent": USER_AGENT, **(headers or {})}
+    )
+    return _open_json(request)
+
+
+def post_form_json(url: str, form: dict[str, Any], headers: dict[str, str] | None = None) -> dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        data=urllib.parse.urlencode(form).encode("utf-8"),
+        headers={"User-Agent": USER_AGENT, **(headers or {})},
+        method="POST",
+    )
+    return _open_json(request)
+
+
+def find_place(city: str) -> dict[str, Any] | None:
+    """Devuelve la primera coincidencia de geocodificación para una ciudad."""
+    geo = get_json(GEOCODING_URL, {"name": city, "count": 1, "language": "es", "format": "json"})
+    places = geo.get("results")
+    return places[0] if places else None
 
 
 def get_wheater(city: str) -> str:
@@ -61,13 +88,11 @@ def get_wheater(city: str) -> str:
         return "Error: la ciudad no puede estar vacía."
 
     try:
-        geo = _get_json(GEOCODING_URL, {"name": city, "count": 1, "language": "es", "format": "json"})
-        places = geo.get("results")
-        if not places:
+        place = find_place(city)
+        if place is None:
             return f"Error: no se encontró la ciudad '{city}'."
-        place = places[0]
 
-        forecast = _get_json(
+        forecast = get_json(
             FORECAST_URL,
             {
                 "latitude": place["latitude"],
@@ -77,8 +102,8 @@ def get_wheater(city: str) -> str:
         )
         current = forecast["current"]
         units = forecast["current_units"]
-    except (OSError, ValueError, KeyError) as error:
-        return f"Error al consultar el tiempo: {error}"
+    except Exception:
+        return API_ERROR_TEXT
 
     condition = WEATHER_CODES.get(current["weather_code"], "estado desconocido")
     return (

@@ -1,20 +1,23 @@
+import operator
+from typing import Annotated, Any, TypedDict
+
+from langgraph.graph import END, START, StateGraph
+
 from .model import Message, Model, ToolCall
-from .tools import Tool
+from .tools import API_ERROR_TEXT, Tool
 
 SYSTEM_PROMPT = (
     "Eres un asistente que responde en español. "
-    "Usa las herramientas disponibles cuando necesites datos externos."
+    "Usa las herramientas disponibles cuando necesites datos externos. "
+    "Ignora los fallos técnicos de las herramientas: no los menciones ni expliques sus causas "
+    "(credenciales, códigos de error, tiempos de espera o similares). "
+    "Si no tienes datos, responde con lo que sepas sin inventar nada."
 )
 
 
-class Context:
-    """Historial de mensajes que se envía al modelo en cada paso."""
-
-    def __init__(self, system_prompt: str) -> None:
-        self.messages: list[Message] = [Message(role="system", content=system_prompt)]
-
-    def add(self, message: Message) -> None:
-        self.messages.append(message)
+class AgentState(TypedDict):
+    messages: Annotated[list[Message], operator.add]
+    steps: int
 
 
 class Agent:
@@ -27,28 +30,59 @@ class Agent:
     ) -> None:
         self.model = model
         self.tools = {tool.name: tool for tool in tools}
-        self.context = Context(system_prompt)
+        self.schemas = [tool.schema() for tool in tools]
+        self.system_message = Message(role="system", content=system_prompt)
         self.max_steps = max_steps
+        self.history: list[Message] = []
+        self.graph = self._build_graph()
 
     def run(self, user_input: str) -> str:
-        """Bucle de orquestación: consulta al modelo hasta obtener una respuesta final."""
-        self.context.add(Message(role="user", content=user_input))
-        schemas = [tool.schema() for tool in self.tools.values()]
+        """Ejecuta el grafo con el historial acumulado y devuelve la respuesta final."""
+        state = self.graph.invoke(
+            {
+                "messages": [*self.history, Message(role="user", content=user_input)],
+                "steps": 0,
+            },
+            {"recursion_limit": 2 * self.max_steps + 4},
+        )
+        self.history = state["messages"]
+        return state["messages"][-1].content
 
-        for _ in range(self.max_steps):
-            response = self.model.generate(self.context.messages, schemas)
+    def _build_graph(self):
+        builder = StateGraph(AgentState)
+        builder.add_node("llm", self._call_model)
+        builder.add_node("tools", self._run_tool)
+        builder.add_node("limit", self._limit_reached)
+        builder.add_edge(START, "llm")
+        builder.add_conditional_edges("llm", self._route_after_llm, {"tools": "tools", "end": END})
+        builder.add_conditional_edges("tools", self._route_after_tools, {"llm": "llm", "limit": "limit"})
+        builder.add_edge("limit", END)
+        return builder.compile()
 
-            if response.tool_call is None:
-                text = response.text or ""
-                self.context.add(Message(role="assistant", content=text))
-                return text
+    def _call_model(self, state: AgentState) -> dict[str, Any]:
+        response = self.model.generate([self.system_message, *state["messages"]], self.schemas)
+        if response.tool_call is None:
+            message = Message(role="assistant", content=response.text or "")
+        else:
+            message = Message(role="assistant", content="", tool_call=response.tool_call)
+        return {"messages": [message], "steps": state["steps"] + 1}
 
-            call = response.tool_call
-            self.context.add(Message(role="assistant", content="", tool_call=call))
-            result = self._execute(call)
-            self.context.add(Message(role="tool", content=result, tool_call_id=call.id))
+    def _run_tool(self, state: AgentState) -> dict[str, Any]:
+        call = state["messages"][-1].tool_call
+        result = self._execute(call)
+        return {"messages": [Message(role="tool", content=result, tool_call_id=call.id)]}
 
-        return "No se obtuvo una respuesta final dentro del límite de pasos."
+    @staticmethod
+    def _limit_reached(state: AgentState) -> dict[str, Any]:
+        text = "No se obtuvo una respuesta final dentro del límite de pasos."
+        return {"messages": [Message(role="assistant", content=text)]}
+
+    @staticmethod
+    def _route_after_llm(state: AgentState) -> str:
+        return "end" if state["messages"][-1].tool_call is None else "tools"
+
+    def _route_after_tools(self, state: AgentState) -> str:
+        return "limit" if state["steps"] >= self.max_steps else "llm"
 
     def _execute(self, call: ToolCall) -> str:
         tool = self.tools.get(call.name)
@@ -58,3 +92,5 @@ class Agent:
             return tool.run(call.arguments)
         except TypeError as error:
             return f"Error en los argumentos de '{call.name}': {error}"
+        except Exception:
+            return API_ERROR_TEXT
