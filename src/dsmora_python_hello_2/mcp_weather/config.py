@@ -1,0 +1,3 @@
+MCP_HOST = "127.0.0.1"
+MCP_PORT = 8000
+MCP_ENDPOINT = f"http://{MCP_HOST}:{MCP_PORT}/mcp"

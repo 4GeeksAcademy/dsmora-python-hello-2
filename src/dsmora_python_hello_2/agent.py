@@ -3,13 +3,20 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from .memory import UserMemory
 from .model import Message, Model, ToolCall
 from .tools import API_ERROR_TEXT, Tool
 
 SYSTEM_PROMPT = (
-    "Eres un asistente que responde en español. Cuando el usuario solicite el tiempo "
-    "e indique una ciudad, llama a get_weather sin pedir confirmación previa; "
-    "la herramienta MCP solicitará el consentimiento justo antes de consultar."
+    "Eres un asistente que responde en español salvo que el usuario prefiera otro idioma. "
+    "Cuando el usuario solicite el tiempo e indique una ciudad, llama a get_weather sin pedir "
+    "confirmación previa; la herramienta MCP solicitará el consentimiento justo antes de consultar."
+)
+
+MEMORY_PROMPT = (
+    "Tienes memoria persistente. Cuando el usuario comparta preferencias o datos clave "
+    "(nombre, idioma, ciudad, gustos...), guárdalos con save_user_memory; si pide olvidarlos, "
+    "usa delete_user_memory. Usa estos datos para personalizar tus respuestas."
 )
 
 
@@ -25,8 +32,12 @@ class Agent:
         tools: list[Tool],
         system_prompt: str = SYSTEM_PROMPT,
         max_steps: int = 5,
+        memory: UserMemory | None = None,
     ) -> None:
         self.model = model
+        self.memory = memory
+        if memory is not None:
+            tools = [*tools, *memory.tools()]
         self.tools = {tool.name: tool for tool in tools}
         self.schemas = [tool.schema() for tool in tools]
         self.system_message = Message(role="system", content=system_prompt)
@@ -58,12 +69,18 @@ class Agent:
         return builder.compile()
 
     def _call_model(self, state: AgentState) -> dict[str, Any]:
-        response = self.model.generate([self.system_message, *state["messages"]], self.schemas)
+        response = self.model.generate([self._system_message(), *state["messages"]], self.schemas)
         if response.tool_call is None:
             message = Message(role="assistant", content=response.text or "")
         else:
             message = Message(role="assistant", content="", tool_call=response.tool_call)
         return {"messages": [message], "steps": state["steps"] + 1}
+
+    def _system_message(self) -> Message:
+        if self.memory is None:
+            return self.system_message
+        content = f"{self.system_message.content}\n\n{MEMORY_PROMPT}\n\n{self.memory.as_prompt()}"
+        return Message(role="system", content=content)
 
     def _run_tool(self, state: AgentState) -> dict[str, Any]:
         call = state["messages"][-1].tool_call

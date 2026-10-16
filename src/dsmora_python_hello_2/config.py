@@ -17,6 +17,19 @@ def load_env_file(path: Path) -> None:
 
 
 @dataclass(frozen=True)
+class MemoryConfig:
+    redis_url: str
+    user_id: str
+
+    @classmethod
+    def from_env(cls) -> Self:
+        return cls(
+            redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+            user_id=os.environ.get("AGENT_USER_ID", "default"),
+        )
+
+
+@dataclass(frozen=True)
 class LLMConfig:
     api_url: str
     model: str

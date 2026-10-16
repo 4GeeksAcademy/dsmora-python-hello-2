@@ -7,6 +7,7 @@ from typing import Any
 from fastmcp import Context, FastMCP
 
 from ..tools import API_ERROR_TEXT
+from .config import MCP_HOST, MCP_PORT
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -100,4 +101,9 @@ async def get_weather(city: str, ctx: Context) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.run(
+        transport="http",
+        host=MCP_HOST,
+        port=MCP_PORT,
+        show_banner=False,
+    )

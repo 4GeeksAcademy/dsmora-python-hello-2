@@ -1,9 +1,12 @@
 import sys
 from pathlib import Path
 
+import redis
+
 from dsmora_python_hello_2.agent import Agent
-from dsmora_python_hello_2.config import LLMConfig, load_env_file
+from dsmora_python_hello_2.config import LLMConfig, MemoryConfig, load_env_file
 from dsmora_python_hello_2.llm import OpenAICompatibleModel
+from dsmora_python_hello_2.memory import UserMemory
 from dsmora_python_hello_2.tools import WEATHER_TOOL
 
 
@@ -17,7 +20,13 @@ def main() -> None:
 
     model = OpenAICompatibleModel(config.api_url, config.model, config.api_key)
     tools = [WEATHER_TOOL]
-    agent = Agent(model=model, tools=tools)
+    memory_config = MemoryConfig.from_env()
+    try:
+        memory = UserMemory.from_url(memory_config.redis_url, memory_config.user_id)
+    except redis.RedisError:
+        print("Aviso: no se pudo conectar a Redis; el agente funcionará sin memoria persistente.")
+        memory = None
+    agent = Agent(model=model, tools=tools, memory=memory)
     print("Agente de planes y viajes. Escribe 'salir' para terminar.")
 
     while True:

@@ -1,12 +1,12 @@
 import asyncio
-import sys
 from typing import Any
 
 from fastmcp import Client
 from fastmcp.client.elicitation import ElicitResult
-from fastmcp.client.transports import StdioTransport
+from fastmcp.client.transports import StreamableHttpTransport
 
-SERVER_MODULE = "dsmora_python_hello_2.mcp_weather.server"
+from .config import MCP_ENDPOINT
+
 DENIAL_TEXT = "Consulta cancelada: no se otorgó el consentimiento solicitado."
 ERROR_TEXT = "No se pudo obtener el clima en este momento."
 
@@ -38,11 +38,7 @@ async def _invoke_get_weather(city: str) -> str:
         consent_denied = True
         return ElicitResult(action="decline")
 
-    transport = StdioTransport(
-        command=sys.executable,
-        args=["-m", SERVER_MODULE],
-        keep_alive=False,
-    )
+    transport = StreamableHttpTransport(MCP_ENDPOINT)
 
     try:
         async with Client(
@@ -69,7 +65,7 @@ async def _invoke_get_weather(city: str) -> str:
 
 
 def get_weather(city: str) -> str:
-    """Invoke the weather MCP tool through a fresh stdio client."""
+    """Invoke the weather MCP tool through the standalone HTTP server."""
     try:
         asyncio.get_running_loop()
     except RuntimeError:
