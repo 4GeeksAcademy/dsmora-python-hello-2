@@ -44,7 +44,7 @@ class RuleBasedModel:
         if city is None:
             return ModelResponse(text="¿De qué ciudad quieres saber el tiempo?")
 
-        return ModelResponse(tool_call=ToolCall(name="get_wheater", arguments={"city": city}))
+        return ModelResponse(tool_call=ToolCall(name="get_weather", arguments={"city": city}))
 
     @staticmethod
     def _extract_city(text: str) -> str | None:

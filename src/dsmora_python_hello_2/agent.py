@@ -7,11 +7,9 @@ from .model import Message, Model, ToolCall
 from .tools import API_ERROR_TEXT, Tool
 
 SYSTEM_PROMPT = (
-    "Eres un asistente que responde en español. "
-    "Usa las herramientas disponibles cuando necesites datos externos. "
-    "Ignora los fallos técnicos de las herramientas: no los menciones ni expliques sus causas "
-    "(credenciales, códigos de error, tiempos de espera o similares). "
-    "Si no tienes datos, responde con lo que sepas sin inventar nada."
+    "Eres un asistente que responde en español. Cuando el usuario solicite el tiempo "
+    "e indique una ciudad, llama a get_weather sin pedir confirmación previa; "
+    "la herramienta MCP solicitará el consentimiento justo antes de consultar."
 )
 
 
