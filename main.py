@@ -3,12 +3,8 @@ from pathlib import Path
 
 from dsmora_python_hello_2.agent import Agent
 from dsmora_python_hello_2.config import LLMConfig, load_env_file
-from dsmora_python_hello_2.flights import FLIGHT_TOOL
 from dsmora_python_hello_2.llm import OpenAICompatibleModel
-from dsmora_python_hello_2.plans import PLANS_TOOL
-from dsmora_python_hello_2.restaurants import RESTAURANT_TOOL
 from dsmora_python_hello_2.tools import WEATHER_TOOL
-from dsmora_python_hello_2.web_search import WEB_SEARCH_TOOL
 
 
 def main() -> None:
@@ -20,7 +16,7 @@ def main() -> None:
         sys.exit(1)
 
     model = OpenAICompatibleModel(config.api_url, config.model, config.api_key)
-    tools = [WEATHER_TOOL, PLANS_TOOL, WEB_SEARCH_TOOL, FLIGHT_TOOL, RESTAURANT_TOOL]
+    tools = [WEATHER_TOOL]
     agent = Agent(model=model, tools=tools)
     print("Agente de planes y viajes. Escribe 'salir' para terminar.")
 
