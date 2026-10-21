@@ -8,9 +8,9 @@ from .model import Message, Model
 
 BRAND_NAME = "MEXICO LINDO"
 
-# Tools externas autorizadas. Vacía: get_weather (y cualquier otra tool externa) queda bloqueada.
+# Herramientas externas autorizadas.
 # Las tools de memoria no pasan por esta whitelist.
-TOOL_WHITELIST: frozenset[str] = frozenset()
+TOOL_WHITELIST: frozenset[str] = frozenset({"get_weather"})
 
 ONLY_MEXICO_LOCATIONS = (
     "Lo siento, solo soportamos ubicaciones en México. Indícame un destino dentro de México "
@@ -83,7 +83,8 @@ CLASSIFIER_PROMPT = (
     '"asks_purchase_or_booking": bool, "asks_internal_info": bool, '
     '"locations": [{"name": str, "country": str, "state": str}]}\n'
     "- is_travel_planning: true si pide planificar viajes, itinerarios, destinos, actividades, gastronomía, "
-    "cultura o consejos de viaje, o si es un saludo o comparte preferencias personales para su viaje. "
+    "cultura, consejos de viaje o el tiempo actual en México (incluidas preguntas para precisar la ubicación), "
+    "o si es un saludo o comparte preferencias personales para su viaje. "
     "false para cualquier otro tema (programación, matemáticas, política, etc.).\n"
     "- has_out_of_scope_parts: true si el mensaje, además de lo relacionado con el viaje, incluye cualquier "
     "petición ajena (operaciones matemáticas, código, traducciones, redacciones, preguntas generales, etc.), "
