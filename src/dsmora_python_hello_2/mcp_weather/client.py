@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any
 
 from fastmcp import Client
@@ -12,6 +13,10 @@ ERROR_TEXT = "No se pudo obtener el clima en este momento."
 
 
 async def _invoke_get_weather(city: str) -> str:
+    access_token = os.environ.get("MCP_ACCESS_TOKEN", "").strip()
+    if not access_token:
+        return "No se pudo obtener el clima: configura MCP_ACCESS_TOKEN con un access token OAuth vigente."
+
     consent_denied = False
 
     async def handle_elicitation(
@@ -38,7 +43,10 @@ async def _invoke_get_weather(city: str) -> str:
         consent_denied = True
         return ElicitResult(action="decline")
 
-    transport = StreamableHttpTransport(MCP_ENDPOINT)
+    transport = StreamableHttpTransport(
+        MCP_ENDPOINT,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
 
     try:
         async with Client(

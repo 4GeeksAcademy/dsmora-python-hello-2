@@ -2,12 +2,22 @@ import asyncio
 import json
 import urllib.parse
 import urllib.request
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
+import uvicorn
 from fastmcp import Context, FastMCP
+from mcpauth import MCPAuth
+from mcpauth.config import AuthServerType
+from mcpauth.types import ResourceServerConfig, ResourceServerMetadata
+from mcpauth.utils import fetch_server_config
+from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.routing import Mount
 
 from ..tools import API_ERROR_TEXT
-from .config import MCP_HOST, MCP_PORT
+from .config import MCP_AUTH_AUDIENCE, MCP_AUTH_ISSUER, MCP_HOST, MCP_PORT, MCP_RESOURCE_URL
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -100,10 +110,44 @@ async def get_weather(city: str, ctx: Context) -> str:
     return await asyncio.to_thread(_get_current_weather, city)
 
 
-if __name__ == "__main__":
-    mcp.run(
-        transport="http",
-        host=MCP_HOST,
-        port=MCP_PORT,
-        show_banner=False,
+def create_app() -> Starlette:
+    if not MCP_AUTH_ISSUER:
+        raise RuntimeError("Configura MCP_AUTH_ISSUER con el issuer OIDC del proveedor OAuth.")
+
+    auth_server = fetch_server_config(MCP_AUTH_ISSUER, AuthServerType.OAUTH)
+    mcp_auth = MCPAuth(
+        protected_resources=[
+            ResourceServerConfig(
+                metadata=ResourceServerMetadata(
+                    resource=MCP_RESOURCE_URL,
+                    authorization_servers=[auth_server],
+                    resource_name="Weather MCP",
+                )
+            )
+        ]
     )
+    mcp_http_app = mcp.http_app(path="/mcp")
+    bearer_auth = Middleware(
+        mcp_auth.bearer_auth_middleware(
+            "jwt",
+            audience=MCP_AUTH_AUDIENCE,
+            resource=MCP_RESOURCE_URL,
+        )
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        async with mcp_http_app.router.lifespan_context(mcp_http_app):
+            yield
+
+    return Starlette(
+        routes=[
+            *mcp_auth.resource_metadata_router().routes,
+            Mount("/", app=mcp_http_app, middleware=[bearer_auth]),
+        ],
+        lifespan=lifespan,
+    )
+
+
+if __name__ == "__main__":
+    uvicorn.run(create_app(), host=MCP_HOST, port=MCP_PORT)

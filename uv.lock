@@ -483,7 +483,9 @@ dependencies = [
     { name = "fastmcp" },
     { name = "grandalf" },
     { name = "langgraph" },
+    { name = "mcpauth" },
     { name = "redis" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
@@ -492,7 +494,9 @@ requires-dist = [
     { name = "fastmcp", specifier = ">=4.1.0" },
     { name = "grandalf", specifier = ">=0.8" },
     { name = "langgraph", specifier = ">=1.2.14" },
+    { name = "mcpauth", specifier = ">=0.2.0b1" },
     { name = "redis", specifier = ">=8.1.0" },
+    { name = "uvicorn", specifier = ">=0.35.0" },
 ]
 
 [[package]]
@@ -1110,6 +1114,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9e/2d/7c251e34207f6c51000312fc8839111ac45cfe02023f90b44e7f1051dd8e/mcp_types-2.3.0.tar.gz", hash = "sha256:d1e46549edb35ee19a94940fcee6d1addd7e589ab7ea92dda83f5d84781fc362", size = 65898, upload-time = "2026-10-02T22:06:57.863Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/48/32583066b155bb5d4507e7887dc88ee23118cc4de8e2a12870c49719e2a8/mcp_types-2.3.0-py3-none-any.whl", hash = "sha256:968efdbdaedfab06adae40d378a34395f1090c5921d4be3c9cde283aaf76d91d", size = 69108, upload-time = "2026-10-02T22:06:54.099Z" },
+]
+
+[[package]]
+name = "mcpauth"
+version = "0.2.0b1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "requests" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/eb/635655e8b2bf55dc74caee4eabf20fce3edfd57c4b6aff4c1cf645ed1afe/mcpauth-0.2.0b1.tar.gz", hash = "sha256:799d3fc6659c71f230e64a277582a51500f69dd4df904a1be0d105875e95a6c1", size = 20990, upload-time = "2025-08-11T05:32:10.175Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/9e/de770ce46734da7f42fc0b75197764919472e4514e817a37d24a5d70e8f5/mcpauth-0.2.0b1-py3-none-any.whl", hash = "sha256:e052178053c1d1fbe4afbcd3c687a05c73969515f73e3073d132825ac3390d73", size = 26763, upload-time = "2025-08-11T05:32:09.392Z" },
 ]
 
 [[package]]

@@ -12,7 +12,9 @@ dependencies = [
     "fastmcp>=4.1.0",
     "grandalf>=0.8",
     "langgraph>=1.2.14",
+    "mcpauth>=0.2.0b1",
     "redis>=8.1.0",
+    "uvicorn>=0.35.0",
 ]
 
 [project.scripts]
