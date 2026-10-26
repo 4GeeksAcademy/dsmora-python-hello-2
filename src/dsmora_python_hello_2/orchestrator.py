@@ -182,7 +182,7 @@ class Orchestrator:
         def worker(payload: WorkerInput) -> dict[str, Any]:
             self._emit(f"[{agent.name}] ▶ inicio")
             start = time.perf_counter()
-            result = agent.run(payload["task"])
+            result = agent.run(payload["task"], on_event=self._emit)
             status = "ok" if result.ok else "error"
             self._emit(f"[{agent.name}] ■ fin ({status}, {time.perf_counter() - start:.1f}s)")
             return {"results": [result]}

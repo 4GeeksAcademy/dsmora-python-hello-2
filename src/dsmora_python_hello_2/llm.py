@@ -5,7 +5,7 @@ from typing import Any
 
 from .model import Message, ModelResponse, ToolCall
 
-TIMEOUT_SECONDS = 60
+TIMEOUT_SECONDS = 120
 
 
 def _to_api_message(message: Message) -> dict[str, Any]:
