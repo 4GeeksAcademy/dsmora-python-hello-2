@@ -1,76 +1,57 @@
 import asyncio
-from typing import Any
+import json
+import logging
+import os
+from typing import Any, Callable
 
 from fastmcp import Client
 from fastmcp.client.elicitation import ElicitResult
 from fastmcp.client.transports import StreamableHttpTransport
+from fastmcp.exceptions import FastMCPError
 
 from .config import MCP_ENDPOINT
 
-DENIAL_TEXT = "Consulta cancelada: no se otorgó el consentimiento solicitado."
-ERROR_TEXT = "No se pudo obtener el clima en este momento."
 
-
-async def _invoke_get_weather(city: str) -> str:
-    consent_denied = False
-
-    async def handle_elicitation(
-        message: str,
-        response_type: type[Any] | None,
-        params: Any,
-        context: Any,
-    ) -> ElicitResult[dict[str, bool]]:
-        nonlocal consent_denied
-        print(message)
-        try:
-            accepted = input("Respuesta (sí/no): ").strip().casefold() in {
-                "s",
-                "si",
-                "sí",
-                "yes",
-            }
-        except EOFError:
-            accepted = False
-
-        if accepted:
-            return ElicitResult(action="accept", content={"value": True})
-
-        consent_denied = True
-        return ElicitResult(action="decline")
-
-    transport = StreamableHttpTransport(MCP_ENDPOINT)
-
+def terminal_consent(message: str) -> bool:
+    print(message)
     try:
-        async with Client(
-            transport,
-            mode="legacy",
-            elicitation_handler=handle_elicitation,
-        ) as client:
-            result = await client.call_tool("get_weather", {"city": city})
-    except Exception:
-        return DENIAL_TEXT if consent_denied else ERROR_TEXT
+        return input("Respuesta (si/no): ").strip().casefold() in {"s", "si", "sí", "yes"}
+    except EOFError:
+        return False
 
-    if consent_denied:
-        return DENIAL_TEXT
 
-    if isinstance(result.data, str):
-        return result.data
+async def invoke(
+    name: str, arguments: dict[str, Any], token: str, consent: Callable[[str], bool]
+) -> Any:
+    async def handle_elicitation(message, response_type, params, context):
+        accepted = await asyncio.to_thread(consent, message)
+        return ElicitResult(action="accept", content={"value": True}) if accepted else ElicitResult(action="decline")
 
-    text = "\n".join(
-        block_text
-        for block in result.content
-        if isinstance((block_text := getattr(block, "text", None)), str)
-    )
-    return text or ERROR_TEXT
+    async with Client(
+        StreamableHttpTransport(MCP_ENDPOINT, headers={"Authorization": f"Bearer {token}"}),
+        mode="legacy", elicitation_handler=handle_elicitation, timeout=150,
+    ) as client:
+        result = await client.call_tool(name, arguments)
+        if result.is_error:
+            raise RuntimeError("La herramienta MCP rechazo la operacion.")
+        if result.data is not None:
+            return result.data
+        return "\n".join(block.text for block in result.content if hasattr(block, "text"))
+
+
+def call_tool(
+    name: str, arguments: dict[str, Any], token: str, consent: Callable[[str], bool]
+) -> Any:
+    if not token:
+        raise RuntimeError("Inicia sesion para usar herramientas MCP.")
+    return asyncio.run(invoke(name, arguments, token, consent))
 
 
 def get_weather(city: str) -> str:
-    """Invoke the weather MCP tool through the standalone HTTP server."""
+    """CLI callers must provide a delegated token; there is no unauthenticated bypass."""
     try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        try:
-            return asyncio.run(_invoke_get_weather(city))
-        except Exception:
-            return ERROR_TEXT
-    return ERROR_TEXT
+        result = call_tool("get_weather", {"city": city}, os.getenv("MCP_ACCESS_TOKEN", ""), terminal_consent)
+    except (FastMCPError, RuntimeError, OSError, ValueError) as error:
+        logging.getLogger(__name__).warning("Fallo MCP en CLI: %s", type(error).__name__)
+        return "No se pudo consultar el clima. Comprueba tu sesion MCP y el servidor."
+    return result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)

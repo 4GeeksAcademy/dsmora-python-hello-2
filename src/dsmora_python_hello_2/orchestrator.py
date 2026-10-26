@@ -1,4 +1,5 @@
 import json
+import logging
 import operator
 import time
 from typing import Annotated, Any, Callable, TypedDict
@@ -61,6 +62,7 @@ class Orchestrator:
         memory: UserMemory | None = None,
         history_window: int = 6,
         on_event: Callable[[str], None] | None = None,
+        capability_notice: str = "",
     ) -> None:
         self.model = model
         self.memory = memory
@@ -68,6 +70,7 @@ class Orchestrator:
         self.subagents = {agent.name: agent for agent in subagents}
         self.history_window = history_window
         self.on_event = on_event
+        self.capability_notice = capability_notice
         self.history: list[Message] = []
         self.graph = self._build_graph()
 
@@ -127,7 +130,10 @@ class Orchestrator:
     def _router_messages(self, state: OrchestratorState) -> list[Message]:
         agents = "\n".join(f"- {name}: {agent.description}" for name, agent in self.subagents.items())
         memory = self.memory.as_prompt() if self.memory is not None else ""
-        system = Message(role="system", content=ROUTER_PROMPT.format(agents=agents, memory=memory))
+        system = Message(
+            role="system",
+            content=ROUTER_PROMPT.format(agents=agents, memory=memory) + "\n" + self.capability_notice,
+        )
         messages = state["messages"][-self.history_window :]
         if state["sanitized_input"]:
             messages = [*messages[:-1], Message(role="user", content=state["sanitized_input"])]
@@ -161,7 +167,8 @@ class Orchestrator:
                 for key in forget:
                     self.memory.forget(str(key))
         except Exception:
-            pass
+            logging.getLogger(__name__).exception("No se pudo actualizar la memoria del usuario.")
+            raise
 
     def _emit(self, text: str) -> None:
         if self.on_event is not None:

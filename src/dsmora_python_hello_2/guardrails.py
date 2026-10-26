@@ -10,7 +10,9 @@ BRAND_NAME = "MEXICO LINDO"
 
 # Herramientas externas autorizadas.
 # Las tools de memoria no pasan por esta whitelist.
-TOOL_WHITELIST: frozenset[str] = frozenset({"get_weather"})
+TOOL_WHITELIST: frozenset[str] = frozenset({
+    "get_weather", "save_trip_plan", "list_trip_plans", "delete_trip_plan",
+})
 
 ONLY_MEXICO_LOCATIONS = (
     "Lo siento, solo soportamos ubicaciones en México. Indícame un destino dentro de México "
@@ -84,7 +86,7 @@ CLASSIFIER_PROMPT = (
     '"locations": [{"name": str, "country": str, "state": str}]}\n'
     "- is_travel_planning: true si pide planificar viajes, itinerarios, destinos, actividades, gastronomía, "
     "cultura, consejos de viaje o el tiempo actual en México (incluidas preguntas para precisar la ubicación), "
-    "o si es un saludo o comparte preferencias personales para su viaje. "
+    "o si es un saludo, comparte preferencias personales o pide guardar, listar o eliminar sus planes de viaje. "
     "false para cualquier otro tema (programación, matemáticas, política, etc.).\n"
     "- has_out_of_scope_parts: true si el mensaje, además de lo relacionado con el viaje, incluye cualquier "
     "petición ajena (operaciones matemáticas, código, traducciones, redacciones, preguntas generales, etc.), "

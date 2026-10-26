@@ -1,13 +1,105 @@
+name: mexico-lindo
+
+x-python: &python
+  image: mexico-lindo-python:local
+  build: .
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  environment: &common
+    APP_ENV: development
+    APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+    REDIS_URL: redis://redis:6379/0
+    JWT_ISSUER: http://backend:8000
+    JWKS_URL: http://backend:8000/.well-known/jwks.json
+    MCP_ENDPOINT: http://mcp:8002/mcp
+  networks:
+    - application
+
 services:
   redis:
     image: redis:7-alpine
-    container_name: agent-memory-redis
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     restart: unless-stopped
+    networks: [application]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    <<: *python
+    environment:
+      <<: *common
+      AGENT_URL: http://agent:8001
+      CODESPACES: ${CODESPACES:-false}
+      DATA_DIR: /data
+      JWT_KEY_FILE: /data/jwt.pem
+      SEED_DEMO_USER: "true"
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
+    volumes:
+      - backend-data:/data
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mcp:
+    <<: *python
+    command: ["uvicorn", "dsmora_python_hello_2.mcp_weather.server:app", "--host", "0.0.0.0", "--port", "8002"]
+    depends_on:
+      backend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health/ready', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  agent:
+    <<: *python
+    command: ["uvicorn", "dsmora_python_hello_2.agent_service.app:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      <<: *common
+      LLM_API_URL: ${LLM_API_URL:?Configure LLM_API_URL in .env}
+      LLM_MODEL: ${LLM_MODEL:?Configure LLM_MODEL in .env}
+      LLM_API_KEY: ${LLM_API_KEY:?Configure LLM_API_KEY in .env}
+    depends_on:
+      mcp: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/ready', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    init: true
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [application]
+    depends_on:
+      agent: { condition: service_healthy }
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/auth/me').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+networks:
+  application:
 
 volumes:
   redis-data:
+  backend-data:
