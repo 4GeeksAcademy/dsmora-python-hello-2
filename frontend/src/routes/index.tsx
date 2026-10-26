@@ -21,7 +21,11 @@ function Agent() {
 
   useEffect(() => {
     conversation.current = crypto.randomUUID()
-    api<Identity>('/auth/me').then(setIdentity).catch(error => setError(errorMessage(error)))
+    api<Identity>('/auth/me').then(value => {
+      setIdentity(value)
+      const savedJobId = value.authenticated ? localStorage.getItem('active_job_id') : null
+      if (savedJobId) setJobId(savedJobId)
+    }).catch(error => setError(errorMessage(error)))
   }, [])
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, job?.pending])
 
@@ -34,8 +38,14 @@ function Agent() {
         const next = await api<Job>(`/jobs/${jobId}`, undefined, undefined, controller.signal)
         setJob(next)
         if (next.status === 'running') timer = setTimeout(poll, 800)
-        else {
+        else if (next.status === 'awaiting_approval') {
+          return
+        } else if (next.status === 'approved' || next.status === 'denied') {
+          await api(`/jobs/${jobId}/resume`, identity, {})
+          setJob(current => current ? { ...current, status: 'running', pending: null } : current)
+        } else {
           setJobId(undefined)
+          if (localStorage.getItem('active_job_id') === jobId) localStorage.removeItem('active_job_id')
           if (next.status === 'failed') setError(next.error || 'El trabajo ha fallado.')
           else if (typeof next.result === 'string') {
             const text = next.result
@@ -57,12 +67,13 @@ function Agent() {
     }
     void poll()
     return () => { controller.abort(); clearTimeout(timer) }
-  }, [jobId])
+  }, [jobId, job?.status])
 
   async function start(path: string, body: unknown) {
     setError(''); setSubmitting(true); setJob(undefined)
     try {
       const result = await api<{ job_id: string }>(path, identity, body)
+      if (identity?.authenticated) localStorage.setItem('active_job_id', result.job_id)
       setJobId(result.job_id)
     } catch (error) { setError(errorMessage(error)) }
     finally { setSubmitting(false) }
@@ -72,8 +83,23 @@ function Agent() {
     if (!jobId || !job?.pending) return
     setConfirming(true)
     try {
-      await api(`/jobs/${jobId}/confirm`, identity, { confirmation_id: job.pending.id, accept })
-      setJob(current => current ? { ...current, pending: null } : current)
+      const pending = job.pending
+      if (pending.version !== undefined && pending.digest) {
+        const result = await api<{ status: 'approved' | 'denied' }>(
+          `/jobs/${jobId}/approve`,
+          identity,
+          {
+            request_id: pending.id,
+            version: pending.version,
+            digest: pending.digest,
+            action: accept ? 'approve' : 'deny',
+          },
+        )
+        setJob(current => current ? { ...current, status: result.status, pending: null } : current)
+      } else {
+        await api(`/jobs/${jobId}/confirm`, identity, { confirmation_id: pending.id, accept })
+        setJob(current => current ? { ...current, pending: null } : current)
+      }
     } catch (error) { setError(errorMessage(error)) }
     finally { setConfirming(false) }
   }
@@ -154,12 +180,16 @@ function Agent() {
       </main>
       {job?.pending && <div className="modal-backdrop">
         <section role="dialog" aria-modal="true" aria-labelledby="consent-title" className="consent card">
-          <h2 id="consent-title">Tu autorizacion es necesaria</h2>
+          <h2 id="consent-title">{job.pending.version !== undefined ? 'Aprobar guardado del plan' : 'Tu autorizacion es necesaria'}</h2>
           <p>{job.pending.message}</p>
-          <p className="muted">Esta confirmacion es solo para esta accion y caduca en 90 segundos.</p>
+          {job.pending.title && <h3>{job.pending.title}</h3>}
+          {job.pending.content && <pre>{job.pending.content}</pre>}
+          {job.pending.expires && <p className="muted">Esta confirmacion temporal caduca en 90 segundos.</p>}
           <div className="actions">
             <button className="secondary" disabled={confirming} onClick={() => void confirm(false)}>Rechazar</button>
-            <button disabled={confirming} onClick={() => void confirm(true)}>Autorizar esta accion</button>
+            <button disabled={confirming} onClick={() => void confirm(true)}>
+              {job.pending.version !== undefined ? 'Aprobar y guardar' : 'Autorizar esta accion'}
+            </button>
           </div>
         </section>
       </div>}

@@ -70,6 +70,9 @@ services:
       LLM_API_URL: ${LLM_API_URL:?Configure LLM_API_URL in .env}
       LLM_MODEL: ${LLM_MODEL:?Configure LLM_MODEL in .env}
       LLM_API_KEY: ${LLM_API_KEY:?Configure LLM_API_KEY in .env}
+      DATA_DIR: /data
+    volumes:
+      - agent-data:/data
     depends_on:
       mcp: { condition: service_healthy }
     healthcheck:
@@ -103,3 +106,4 @@ networks:
 volumes:
   redis-data:
   backend-data:
+  agent-data:

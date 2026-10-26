@@ -15,6 +15,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from ..tools import API_ERROR_TEXT
+from ..approval import candidate_digest
 from .config import MCP_HOST, MCP_PORT
 from .auth import SessionBindingMiddleware, bearer_middleware, principal
 from ..security import database, key_client
@@ -116,25 +117,86 @@ async def confirmed(ctx: Context, action: str) -> bool:
 
 @mcp.tool()
 async def save_trip_plan(title: str, content: str, ctx: Context) -> dict[str, Any]:
-    """Guarda un plan propio (no una reserva), previa confirmacion del usuario."""
+    """Guarda un plan propio previamente aprobado por el usuario."""
     owner = principal("plans:write").subject
     title, content = title.strip(), content.strip()
     if not 1 <= len(title) <= 120 or not 1 <= len(content) <= 6000:
         raise ToolError("Titulo de 1-120 caracteres y plan de 1-6000 caracteres obligatorios.")
-    if not await confirmed(ctx, f"Guardar el plan '{title}':\n{content}"):
-        return {"status": "cancelled"}
     principal("plans:write")
+    request_context = ctx.request_context
+    request = request_context.request if request_context is not None else None
+    if request is None:
+        raise ToolError("Se requiere una autorizacion de guardado verificada.")
+    headers = request.headers
+    auth_ref = headers.get("X-Plan-Authorization", "")
+    operation_id = headers.get("X-Plan-Operation-ID", "")
+    request_id = headers.get("X-Plan-Request-ID", "")
+    try:
+        version = int(headers.get("X-Plan-Version", ""))
+    except ValueError as error:
+        raise ToolError("La autorizacion de guardado es invalida.") from error
+    digest = headers.get("X-Plan-Digest", "")
+    if (
+        not auth_ref
+        or not operation_id
+        or not request_id
+        or version != 1
+        or digest != candidate_digest(owner, version, title, content)
+    ):
+        raise ToolError("La autorizacion no corresponde al plan propuesto.")
+    authorization_key = f"plan-authorization:{auth_ref}"
     plan_id = hashlib.sha256(f"{owner}\0{title}\0{content}".encode()).hexdigest()[:24]
     plan = {"id": plan_id, "title": title, "content": content, "created_at": int(time.time())}
+    script = """
+    local raw = redis.call('GET', KEYS[1])
+    if not raw then return -2 end
+    local grant = cjson.decode(raw)
+    if grant.owner_id ~= ARGV[1] or grant.operation_id ~= ARGV[2]
+       or grant.request_id ~= ARGV[3] or tostring(grant.version) ~= ARGV[4]
+       or grant.digest ~= ARGV[5] then return -3 end
+    local receipt = redis.call('GET', KEYS[3])
+    if receipt then
+        local previous = cjson.decode(receipt)
+        if previous.digest ~= ARGV[5] then return -3 end
+        redis.call('DEL', KEYS[1])
+        return receipt
+    end
+    local existing = redis.call('HGET', KEYS[2], ARGV[6])
+    local result
+    if existing then
+        result = cjson.encode({status='already_saved', plan=cjson.decode(existing), digest=ARGV[5]})
+    else
+        if redis.call('HLEN', KEYS[2]) >= tonumber(ARGV[8]) then return -1 end
+        redis.call('HSET', KEYS[2], ARGV[6], ARGV[7])
+        result = cjson.encode({status='saved', plan=cjson.decode(ARGV[7]), digest=ARGV[5]})
+    end
+    redis.call('SET', KEYS[3], result)
+    redis.call('DEL', KEYS[1])
+    return result
+    """
+    receipt_key = f"plan-receipt:{owner}:{operation_id}"
     result = database().eval(
-        "if redis.call('HEXISTS',KEYS[1],ARGV[1])==1 then return 0 end; "
-        "if redis.call('HLEN',KEYS[1])>=tonumber(ARGV[3]) then return -1 end; "
-        "redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]); return 1",
-        1, f"plans:{owner}", plan_id, json.dumps(plan), settings.max_plans,
+        script,
+        3,
+        authorization_key,
+        f"plans:{owner}",
+        receipt_key,
+        owner,
+        operation_id,
+        request_id,
+        version,
+        digest,
+        plan_id,
+        json.dumps(plan, ensure_ascii=False),
+        settings.max_plans,
     )
     if result == -1:
         raise ToolError(f"Limite de {settings.max_plans} planes alcanzado.")
-    return {"status": "saved" if result == 1 else "already_saved", "plan": plan}
+    if result == -2:
+        raise ToolError("No existe una autorizacion vigente para esta operacion.")
+    if result == -3:
+        raise ToolError("La autorizacion no coincide con el candidato aprobado.")
+    return json.loads(result)
 
 
 @mcp.tool()

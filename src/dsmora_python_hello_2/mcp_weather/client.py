@@ -47,6 +47,33 @@ def call_tool(
     return asyncio.run(invoke(name, arguments, token, consent))
 
 
+async def invoke_with_headers(
+    name: str, arguments: dict[str, Any], token: str, headers: dict[str, str]
+) -> Any:
+    async with Client(
+        StreamableHttpTransport(
+            MCP_ENDPOINT,
+            headers={"Authorization": f"Bearer {token}", **headers},
+        ),
+        mode="legacy",
+        timeout=150,
+    ) as client:
+        result = await client.call_tool(name, arguments)
+        if result.is_error:
+            raise RuntimeError("La herramienta MCP rechazo la operacion.")
+        if result.data is not None:
+            return result.data
+        return "\n".join(block.text for block in result.content if hasattr(block, "text"))
+
+
+def call_tool_with_headers(
+    name: str, arguments: dict[str, Any], token: str, headers: dict[str, str]
+) -> Any:
+    if not token:
+        raise RuntimeError("Inicia sesion para usar herramientas MCP.")
+    return asyncio.run(invoke_with_headers(name, arguments, token, headers))
+
+
 def get_weather(city: str) -> str:
     """CLI callers must provide a delegated token; there is no unauthenticated bypass."""
     try:

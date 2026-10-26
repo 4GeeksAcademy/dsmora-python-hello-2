@@ -1,6 +1,8 @@
 import json
+import logging
 import operator
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Callable, TypedDict
 
@@ -81,6 +83,7 @@ class SubAgentTask:
     agent: str
     instruction: str
     context: dict[str, str] = field(default_factory=dict)
+    task_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     def to_message(self) -> Message:
         lines = [f"Tarea: {self.instruction}"]
@@ -97,6 +100,8 @@ class SubAgentResult:
     agent: str
     content: str
     ok: bool = True
+    task_id: str = ""
+    proposal: dict[str, str] | None = None
 
 
 class SubAgentState(TypedDict):
@@ -106,6 +111,7 @@ class SubAgentState(TypedDict):
     evaluation_count: int
     evaluation: dict[str, Any] | None
     on_event: Callable[[str], None] | None
+    proposal: dict[str, str] | None
 
 
 class SubAgent:
@@ -141,6 +147,7 @@ class SubAgent:
                     "evaluation_count": 0,
                     "evaluation": None,
                     "on_event": on_event,
+                    "proposal": None,
                 },
                 {
                     "recursion_limit": (
@@ -151,6 +158,7 @@ class SubAgent:
                 },
             )
         except Exception as error:
+            logging.getLogger(__name__).error("Subagente %s fallo: %s: %.300s", self.name, type(error).__name__, error)
             if self.name == "planner" and on_event is not None:
                 if self._is_timeout_error(error):
                     on_event(
@@ -162,11 +170,23 @@ class SubAgent:
                         "se devuelve el error estándar."
                     )
             if self.name == "planner" and self._is_timeout_error(error):
-                return SubAgentResult(agent=self.name, content=PLANNER_TIMEOUT_RESULT, ok=False)
-            return SubAgentResult(agent=self.name, content=API_ERROR_TEXT, ok=False)
+                return SubAgentResult(
+                    agent=self.name, content=PLANNER_TIMEOUT_RESULT, ok=False, task_id=task.task_id
+                )
+            return SubAgentResult(agent=self.name, content=API_ERROR_TEXT, ok=False, task_id=task.task_id)
         if state["draft"] is None:
-            return SubAgentResult(agent=self.name, content="No se obtuvo una respuesta a tiempo.", ok=False)
-        return SubAgentResult(agent=self.name, content=state["draft"])
+            return SubAgentResult(
+                agent=self.name,
+                content="No se obtuvo una respuesta a tiempo.",
+                ok=False,
+                task_id=task.task_id,
+            )
+        return SubAgentResult(
+            agent=self.name,
+            content=state["draft"],
+            task_id=task.task_id,
+            proposal=state["proposal"],
+        )
 
     def _build_graph(self):
         builder = StateGraph(SubAgentState)
@@ -192,7 +212,7 @@ class SubAgent:
                 self._route_after_optimization,
                 {"evaluate": "evaluate", "end": END},
             )
-        return builder.compile()
+        return builder.compile(checkpointer=False)
 
     def _call_model(self, state: SubAgentState) -> dict[str, Any]:
         response = self._generate_with_trace(
@@ -209,7 +229,26 @@ class SubAgent:
 
     def _run_tool(self, state: SubAgentState) -> dict[str, Any]:
         call = state["messages"][-1].tool_call
-        return {"messages": [Message(role="tool", content=self._execute(call), tool_call_id=call.id)]}
+        result = self._execute(call)
+        updates: dict[str, Any] = {
+            "messages": [Message(role="tool", content=result, tool_call_id=call.id)]
+        }
+        if call.name == "save_trip_plan":
+            try:
+                proposal = json.loads(result)
+            except (TypeError, ValueError):
+                proposal = None
+            if (
+                isinstance(proposal, dict)
+                and proposal.get("status") == "proposal"
+                and isinstance(proposal.get("title"), str)
+                and isinstance(proposal.get("content"), str)
+            ):
+                updates["proposal"] = {
+                    "title": proposal["title"],
+                    "content": proposal["content"],
+                }
+        return updates
 
     def _route_after_llm(self, state: SubAgentState) -> str:
         if state["draft"] is None:

@@ -12,9 +12,18 @@ export interface Plan {
 }
 
 export interface Job {
-  status: 'running' | 'done' | 'failed'
+  status: 'running' | 'awaiting_approval' | 'approved' | 'denied' | 'done' | 'failed'
   progress?: string
-  pending?: { id: string; message: string; expires: number } | null
+  pending?: {
+    id: string
+    message: string
+    expires?: number
+    title?: string
+    content?: string
+    version?: number
+    digest?: string
+    operation_id?: string
+  } | null
   result?: string | { plans?: Plan[]; status?: string; plan?: Plan; id?: string }
   error?: string
 }

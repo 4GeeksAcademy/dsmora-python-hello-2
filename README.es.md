@@ -50,7 +50,7 @@ docker compose down
 ```
 
 El apagado normal conserva los datos. `down -v` borraria usuarios, claves,
-preferencias y planes; no lo uses como apagado habitual.
+preferencias, planes y aprobaciones pendientes; no lo uses como apagado habitual.
 
 ## Arquitectura y permisos
 
@@ -62,8 +62,12 @@ navegador -> TanStack Start /api -> FastAPI -> agente LangGraph -> FastMCP
 
 - Invitados: solo planifican viajes por Mexico; su agente no registra herramientas MCP.
 - Autenticados: clima y guardar/listar/eliminar exclusivamente sus propios planes.
-- El clima y las escrituras requieren una confirmacion explicita, de un solo
-  uso y ligada a la accion. Rechazar o dejar caducar no ejecuta la accion.
+- El guardado de planes requiere una aprobacion humana durable antes de escribir
+  en MCP. El candidato exacto, su version y digest quedan asociados a un
+  checkpoint SQLite; no caduca automaticamente y se puede recuperar despues de
+  reiniciar el agente. La sesion debe autenticarse de nuevo si caduca.
+- El clima y la eliminacion conservan su consentimiento temporal de un solo uso
+  y ligado a la accion. Rechazar o dejar caducar no ejecuta la accion.
 - Iniciar sesion no implica consentimiento. No hay reservas, pagos, registro
   publico ni recuperacion de contrasenas.
 - Se conserva el evaluador/optimizador del planner: hasta 15 evaluaciones y
@@ -76,6 +80,15 @@ con caducidad. No se comparte el usuario CLI `default` con usuarios web.
 Los invitados no tienen memoria personal persistente; las conversaciones se
 aislan por sesion y conversacion, sin fusion automatica al iniciar sesion.
 Recargar la pagina inicia una conversacion nueva; los planes guardados permanecen.
+
+El agente guarda sus checkpoints de aprobacion en `agent-data/agent-approvals.sqlite`.
+El estado SQLite conserva la ejecucion y el candidato, no credenciales. MCP verifica
+una autorizacion interna de un solo uso, ligada al propietario, la solicitud, la
+operacion y el digest SHA-256 canonico (`save-plan-v1`: JSON UTF-8 con claves
+ordenadas, sin espacios y con `operation`, `owner_id`, `version`, `title` y
+`content`); conserva un recibo por operacion para que una reanudacion tras una
+caida no duplique el plan. El archivo SQLite no cifra los datos y debe mantenerse
+en un volumen privado con permisos restrictivos.
 
 ### JWT de aplicacion y autorizacion MCP
 
@@ -103,9 +116,11 @@ La clave LLM se entrega exclusivamente al agente. Fuera de desarrollo se rechaza
 la semilla demo, se exige HTTPS y hay que aportar la clave de firma.
 Produccion y clientes MCP externos requieren otro diseno OAuth/OIDC/TLS.
 
-Limites: sesiones/historiales de una hora, trabajos de diez minutos, confirmaciones
-de 90 segundos, cuatro trabajos concurrentes, limites de login/chat/herramientas
-y 50 planes por usuario. Los trabajos interrumpidos no se repiten automaticamente.
+Limites: sesiones/historiales de una hora, trabajos activos de diez minutos
+(la espera de aprobacion durable no consume el timeout), consentimientos
+temporales de 90 segundos, cuatro trabajos concurrentes, limites de
+login/chat/herramientas y 50 planes por usuario. Las aprobaciones de guardado no
+tienen caducidad automatica; las decisiones persistidas se reanudan explicitamente.
 
 ## Comprobaciones y CLI
 

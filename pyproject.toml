@@ -15,6 +15,7 @@ dependencies = [
     "grandalf>=0.8",
     "httpx>=0.28",
     "langgraph>=1.2.14",
+    "langgraph-checkpoint-sqlite>=3.0.0",
     "mcpauth==0.1.1",
     "pyjwt[crypto]>=2.10",
     "redis>=8.1.0",

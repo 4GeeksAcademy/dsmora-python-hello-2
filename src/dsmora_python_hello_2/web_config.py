@@ -13,6 +13,9 @@ class Settings:
     redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
     agent_url: str = os.getenv("AGENT_URL", "http://agent:8001")
     data_dir: Path = Path(os.getenv("DATA_DIR", "/data"))
+    approval_db: Path = Path(
+        os.getenv("APPROVAL_DB_FILE", str(data_dir / "agent-approvals.sqlite"))
+    )
     private_key: Path = Path(os.getenv("JWT_KEY_FILE", "/data/jwt.pem"))
     demo_password_file: Path = Path(os.getenv("DEMO_PASSWORD_FILE", "/run/secrets/demo_password"))
     demo_enabled: bool = os.getenv("SEED_DEMO_USER", "false").lower() == "true"

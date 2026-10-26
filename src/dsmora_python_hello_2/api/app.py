@@ -182,6 +182,13 @@ class Confirmation(BaseModel):
     accept: bool
 
 
+class PlanApproval(BaseModel):
+    request_id: str = Field(min_length=16, max_length=100)
+    version: int = Field(ge=1)
+    digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    action: Literal["approve", "deny"]
+
+
 def agent_request(method: str, path: str, auth: tuple[str, dict[str, Any]], body=None):
     sid, session = auth
     headers = {"Authorization": f"Bearer {issue(session['sub'], sid, 'agent')}"}
@@ -234,3 +241,17 @@ def confirm(job_id: str, body: Confirmation, auth: Mutation):
     if not job_id.isalnum() or len(job_id) != 32:
         raise HTTPException(404, "Trabajo no encontrado.")
     return agent_request("POST", f"/jobs/{job_id}/confirm", auth, body.model_dump())
+
+
+@app.post("/api/jobs/{job_id}/approve")
+def approve(job_id: str, body: PlanApproval, auth: Mutation):
+    if not job_id.isalnum() or len(job_id) != 32:
+        raise HTTPException(404, "Trabajo no encontrado.")
+    return agent_request("POST", f"/jobs/{job_id}/approve", auth, body.model_dump())
+
+
+@app.post("/api/jobs/{job_id}/resume")
+def resume(job_id: str, auth: Mutation):
+    if not job_id.isalnum() or len(job_id) != 32:
+        raise HTTPException(404, "Trabajo no encontrado.")
+    return agent_request("POST", f"/jobs/{job_id}/resume", auth, {})
