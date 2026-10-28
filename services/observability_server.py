@@ -323,31 +323,52 @@ def _list_tickets() -> list[dict]:
 # Optional demo: run the RFP pipeline in the background, streaming its events
 # ---------------------------------------------------------------------------
 
-def run_live_demo(stop: threading.Event) -> None:
-    """Run the 3-part RFP pipeline in the background, publishing SSE events.
+def _seed_already_processed(rfp_id: str) -> bool:
+    """True if a ticket with that rfp_id already exists (avoids piling seeds).
 
-    This is what makes ``docker compose up`` demonstrable: tickets flow
-    through intake → evaluation → approval while the panel on `/` streams
-    ``agent_step`` / ``agent_status_changed`` in real time.
+    ``run_one`` sets ``rfp_id = Path(pdf_path).stem`` for a seed, so we can
+    match it exactly. User uploads use the ``upload_*`` prefix and never match.
+    """
+    for tid in DEFAULT_STORE.list_ticket_ids():
+        full_id = tid if tid.startswith("ticket_") else f"ticket_{tid}"
+        t = DEFAULT_STORE.load(full_id)
+        if t and getattr(t, "rfp_id", None) == rfp_id:
+            return True
+    return False
+
+
+def run_live_demo(stop: threading.Event) -> None:
+    """Run the RFP pipeline in the background, publishing SSE events.
+
+    Generates AT MOST ONE demo seed ("valid" — the Riverside grant, which has
+    three departments: programs, facilities, finance). We keep auto_approve
+    OFF so the ticket pauses at ``waiting_for_approval`` and a human can
+    approve every department from the dashboard (Part 3 HITL demo). It is
+    idempotent: if that seed was already processed it is skipped, so
+    restarting the server never piles up automatic tickets. This keeps the
+    dashboard focused on the RFPs the student uploads themselves.
     """
     from run_rfp_e2e import SEEDS, run_one, write_seed
 
     runner = RfpRunner(DEFAULT_STORE)
     demo_dir = Path("data/raw")
     demo_dir.mkdir(parents=True, exist_ok=True)
-    for key in ("valid", "informal", "invalid"):
-        if stop.is_set():
-            break
-        seed = SEEDS[key]
-        pdf_path = demo_dir / seed["filename"]
+
+    # "valid" (Riverside) is best: 3 departments + rules pass -> real HITL.
+    # "informal" would finish immediately (empty drafting_order).
+    key = "valid"
+    seed = SEEDS[key]
+    pdf_path = demo_dir / seed["filename"]
+    if stop.is_set():
+        return
+    try:
+        if _seed_already_processed(Path(pdf_path).stem):
+            print(f"[demo] seed '{key}' already processed — not repeated")
+            return
         write_seed(key, demo_dir)
-        try:
-            # "informal" stops at waiting_for_approval so a human can approve
-            # the departments from the dashboard (Part 3 HITL demo).
-            auto = key != "informal"
-            run_one(str(pdf_path), DEFAULT_STORE, runner, auto_approve=auto)
-        except Exception as e:  # noqa: BLE001 - demo must not die
-            print(f"[demo] {key} failed: {e}")
+        run_one(str(pdf_path), DEFAULT_STORE, runner, auto_approve=False)
+    except Exception as e:  # noqa: BLE001 - demo must not die
+        print(f"[demo] {key} failed: {e}")
 
 
 INDEX_HTML = """<!doctype html>

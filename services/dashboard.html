@@ -5,84 +5,382 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RFP Agent Observability — Dashboard</title>
 <style>
-  body{font-family:system-ui,sans-serif;margin:1.5rem;background:#0f172a;color:#e2e8f0}
-  h1{font-size:1.4rem;margin-bottom:.2rem}
-  h2{margin:0 0 .5rem;font-size:1rem;color:#7dd3fc}
-  .dim{color:#94a3b8;font-size:.85rem}
-  .row{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin:.6rem 0 1rem}
-  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
-  .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1rem;margin-bottom:1rem}
-  .card pre{background:#0f172a;padding:.6rem;border-radius:6px;overflow:auto;max-height:34vh;font-size:.78rem}
-  .card table{width:100%;border-collapse:collapse;font-size:.78rem}
-  .card td,.card th{padding:.3rem .4rem;border-bottom:1px solid #334155;text-align:left;vertical-align:top}
-  .pill{display:inline-block;padding:.1rem .45rem;border-radius:999px;font-size:.7rem}
-  .ok{background:#14532d;color:#86efac}.warn{background:#78350f;color:#fcd34d}
-  .idle{background:#334155;color:#e2e8f0}.err{background:#7f1d1d;color:#fca5a5}
-  button{background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:.4rem .8rem;cursor:pointer;margin-right:.3rem}
-  button.off{background:#64748b}button.green{background:#16a34a}button.red{background:#dc2626}
-  input[type=file],input[type=text]{background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:.4rem}
-  .ev{color:#86efac}.small{font-size:.72rem;color:#94a3b8}
-  .mode{font-weight:600;padding:.35rem .7rem;border-radius:8px}
-  .mode.rest{background:#1d4ed8;color:#fff}.mode.sse{background:#047857;color:#fff}
+  :root{
+    --bg:#0b1220;
+    --panel:#101a2c;
+    --panel2:#0d1524;
+    --border:#1f2c45;
+    --brd-strong:#2c3f61;
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --dim:#64748b;
+    --accent:#22d3ee;
+    --blue:#3b82f6;
+    --green:#22c55e;
+    --amber:#f59e0b;
+    --red:#ef4444;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --radius:14px;
+    --shadow:0 12px 32px -16px rgba(0,0,0,.65);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    background:radial-gradient(1100px 520px at 85% -10%,rgba(34,211,238,.10),transparent 60%),
+               radial-gradient(900px 460px at -10% 0%,rgba(59,130,246,.10),transparent 55%),
+               var(--bg);
+    color:var(--text);min-height:100vh;line-height:1.5;font-size:15px;
+  }
+  h1{font-size:1.05rem;margin:0;letter-spacing:.01em}
+  h2{font-size:.82rem;margin:0;color:var(--accent);letter-spacing:.03em;text-transform:uppercase}
+  .dim{color:var(--dim)}
+  .small{font-size:.72rem;color:var(--muted)}
+  .mono{font-family:var(--mono)}
+  code{font-family:var(--mono);background:#0b1220;border:1px solid var(--border);border-radius:5px;padding:.05rem .35rem;font-size:.78em;color:#7dd3fc}
+
+  /* ---------- topbar sticky ---------- */
+  .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    padding:.7rem 1.1rem;background:rgba(10,17,32,.9);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);box-shadow:0 6px 20px -14px #000}
+  .brand{display:flex;align-items:center;gap:.7rem;min-width:0}
+  .brand-ico{font-size:1.4rem;filter:drop-shadow(0 0 6px rgba(34,211,238,.4))}
+  .brand-txt .small{margin-top:2px}
+  .top-right{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+  .wrap{max-width:1280px;margin:0 auto;padding:1.1rem}
+
+  /* ---------- badge de modo (REST vs SSE) ---------- */
+  .mode{display:inline-flex;align-items:center;gap:.5rem;font-weight:700;font-size:.78rem;letter-spacing:.04em;
+    padding:.42rem .85rem;border-radius:999px;border:1px solid;transition:background .15s,color .15s}
+  .mode::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block}
+  .mode-rest{background:rgba(59,130,246,.14);color:#93c5fd;border-color:rgba(59,130,246,.45)}
+  .mode-sse{background:rgba(34,197,94,.15);color:#86efac;border-color:rgba(34,197,94,.45)}
+  .mode-sse::before{animation:dotPulse 1.5s ease-in-out infinite;box-shadow:0 0 0 0 rgba(34,197,94,.55)}
+  @keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 7px rgba(34,197,94,0)}}
+
+  /* ---------- status / controles ---------- */
+  .statusline{font-size:.74rem;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--border);
+    border-radius:999px;padding:.28rem .7rem;display:inline-flex;align-items:center;gap:.35rem;max-width:100%}
+  .statusline.ok{color:#86efac;border-color:rgba(34,197,94,.4)}
+  .statusline.err{color:#fca5a5;border-color:rgba(239,68,68,.45)}
+  .controls{display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem}
+  .btn-group{display:flex;gap:.5rem;flex-wrap:wrap}
+  .jwt{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem}
+  input[type=text]{background:#0b1220;color:var(--text);border:1px solid var(--border);border-radius:8px;
+    padding:.5rem .6rem;font-size:.8rem;transition:border-color .15s,box-shadow .15s}
+  input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+  input[type=file]{color:var(--muted);font-size:.78rem}
+
+  /* ---------- hint pedagógico según modo ---------- */
+  .mode-hint{font-size:.83rem;line-height:1.55;color:var(--muted);border:1px solid var(--border);border-radius:12px;
+    padding:.65rem .9rem;margin-bottom:1rem;background:rgba(255,255,255,.02);transition:border-color .15s,background .15s}
+  body[data-mode="rest"] .mode-hint{border-color:rgba(59,130,246,.45);background:rgba(59,130,246,.07)}
+  body[data-mode="sse"] .mode-hint{border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.07);color:#d1fae5}
+  .mode-hint b{color:var(--text)}
+
+  /* ---------- botones ---------- */
+  .btn{display:inline-flex;align-items:center;gap:.45rem;border:none;border-radius:9px;padding:.55rem .95rem;
+    font-weight:600;font-size:.8rem;color:#fff;cursor:pointer;box-shadow:0 4px 14px -8px rgba(0,0,0,.6);
+    transition:transform .12s ease,filter .12s ease,box-shadow .12s ease,background .12s ease}
+  .btn:hover{transform:translateY(-1px);filter:brightness(1.08);box-shadow:0 8px 18px -10px rgba(0,0,0,.7)}
+  .btn:active{transform:translateY(0);filter:brightness(.96)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn-rest{background:linear-gradient(180deg,#3b82f6,#2563eb)}
+  .btn-live{background:linear-gradient(180deg,#22c55e,#15803d)}
+  .btn-off{background:#334155;box-shadow:none}
+  .btn-green{background:linear-gradient(180deg,#22c55e,#16a34a)}
+  .btn-red{background:linear-gradient(180deg,#ef4444,#dc2626)}
+  .btn-amber{background:linear-gradient(180deg,#f59e0b,#d97706)}
+  .btn-cta{background:linear-gradient(180deg,#22d3ee,#0891b2);color:#052e3a;box-shadow:0 6px 18px -8px rgba(34,211,238,.5)}
+
+  /* ---------- tarjetas ---------- */
+  .card{background:linear-gradient(180deg,#141f35,var(--panel));border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+  .card-hd{display:flex;align-items:center;gap:.55rem;padding:.7rem .9rem;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+  .card-hd h2{display:flex;align-items:center;gap:.4rem}
+  .card-bd{padding:.8rem .9rem;flex:1}
+  .count{margin-left:auto;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:.08rem .6rem;
+    font-size:.66rem;color:var(--muted);white-space:nowrap}
+
+  /* ---------- grid responsive ---------- */
+  .grid{display:grid;grid-template-columns:1fr;gap:1rem}
+  @media(min-width:920px){
+    .grid{grid-template-columns:1fr 1fr}
+    .span-wide{grid-column:1/-1}
+    .dept-grid{grid-template-columns:1fr 1fr}
+  }
+  .dept-grid{display:grid;grid-template-columns:1fr;gap:.8rem}
+
+  /* ---------- pills semánticas ---------- */
+  .pill{display:inline-flex;align-items:center;gap:.3rem;padding:.13rem .5rem;border-radius:999px;font-size:.66rem;
+    font-weight:600;letter-spacing:.03em;white-space:nowrap;border:1px solid transparent;vertical-align:middle}
+  .pill-ok{background:rgba(34,197,94,.13);color:#86efac;border-color:rgba(34,197,94,.35)}
+  .pill-err{background:rgba(239,68,68,.13);color:#fca5a5;border-color:rgba(239,68,68,.4)}
+  .pill-warn{background:rgba(245,158,11,.13);color:#fcd34d;border-color:rgba(245,158,11,.4)}
+  .pill-info{background:rgba(59,130,246,.14);color:#93c5fd;border-color:rgba(59,130,246,.4)}
+  .pill-accent{background:rgba(34,211,238,.12);color:#67e8f9;border-color:rgba(34,211,238,.4)}
+  .pill-idle{background:rgba(100,116,139,.16);color:#cbd5e1;border-color:rgba(100,116,139,.4)}
+  .pill-mute{background:rgba(100,116,139,.1);color:var(--muted);border-color:rgba(100,116,139,.25)}
+  .pill.pulse{animation:pillPulse 1.6s ease-in-out infinite}
+  @keyframes pillPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.35)}50%{box-shadow:0 0 0 5px rgba(245,158,11,0)}}
+
+  /* ---------- tablas ---------- */
+  .tbl-wrap{overflow:auto;max-height:56vh}
+  table{width:100%;border-collapse:collapse;font-size:.8rem}
+  th{position:sticky;top:0;z-index:2;text-align:left;color:var(--muted);background:var(--panel);font-weight:600;
+    font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;padding:.45rem .5rem;border-bottom:1px solid var(--border)}
+  td{padding:.5rem .5rem;border-bottom:1px solid rgba(31,44,69,.5);vertical-align:top}
+  tbody tr{transition:background .12s ease}
+  tbody tr.clickable{cursor:pointer}
+  tbody tr.clickable:hover{background:rgba(34,211,238,.06)}
+  .stcell{border-left:3px solid transparent}
+  tr.tr-ok td.stcell{border-left-color:var(--green)}
+  tr.tr-warn td.stcell{border-left-color:var(--amber)}
+  tr.tr-err td.stcell{border-left-color:var(--red)}
+  tr.tr-info td.stcell{border-left-color:var(--blue)}
+  tr.tr-accent td.stcell{border-left-color:var(--accent)}
+  tr.tr-idle td.stcell,tr.tr-mute td.stcell{border-left-color:var(--dim)}
+  .apb{display:inline-flex;align-items:center;gap:.35rem;margin:.05rem .2rem .05rem 0}
   .dept{white-space:nowrap}
+  .chip{display:inline-block;padding:.06rem .45rem;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);
+    color:#93c5fd;font-size:.64rem;margin:.08rem .12rem .08rem 0}
+
+  /* ---------- log + stream SSE ---------- */
+  .log-box{font-family:var(--mono);font-size:.71rem;line-height:1.6;background:#0a1120;border:1px solid var(--border);
+    border-radius:9px;padding:.55rem .6rem;overflow:auto;max-height:42vh;min-height:120px}
+  .log-line{display:flex;gap:.45rem;padding:.05rem 0;white-space:pre-wrap;word-break:break-word;align-items:baseline}
+  .log-line .ln{color:#3f5068;min-width:1.5em;text-align:right;user-select:none;flex:none}
+  .log-line .lt{flex:none;color:#c4b5fd}
+  .log-line .la{flex:none;font-weight:700;color:var(--text)}
+  .log-line .lact{flex:none;color:#7dd3fc}
+  .log-line .lst{flex:none}
+  .log-line .lnote{color:var(--muted)}
+  .log-ok .lst{color:#86efac}
+  .log-info .lst{color:#7dd3fc}
+  .log-mute .lst{color:#94a3b8}
+  .log-err{background:rgba(239,68,68,.07);border-radius:6px}
+  .log-err .lst{color:#fca5a5}
+  .sse-state{font-size:.64rem;font-weight:700;padding:.12rem .55rem;border-radius:999px;border:1px solid var(--border);
+    color:var(--dim);background:var(--panel2);white-space:nowrap}
+  body[data-mode="sse"] .sse-state{color:#86efac;border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.1)}
+  .sse-line{display:flex;gap:.5rem;padding:.26rem .4rem;border-radius:7px;margin-bottom:2px;font-size:.7rem;
+    border-left:3px solid var(--border);background:rgba(255,255,255,.015);animation:fadeSlide .35s ease}
+  .sse-line .ts{color:var(--dim);white-space:nowrap;flex:none}
+  .sse-line code{background:none;border:none;padding:0;color:var(--text);white-space:pre-wrap;word-break:break-all}
+  .sse-line.ev{border-left-color:var(--accent);background:rgba(34,211,238,.07)}
+  .sse-line.ev-ok{border-left-color:var(--green);background:rgba(34,197,94,.07)}
+  .sse-line.ev-err{border-left-color:var(--red);background:rgba(239,68,68,.07)}
+  .sse-line.ev-info{border-left-color:var(--blue);background:rgba(59,130,246,.07)}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+  /* ---------- detalle HITL ---------- */
+  .ticket-detail{font-size:.82rem}
+  .detail-head{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem}
+  .detail-title{display:flex;align-items:center;gap:.6rem;font-size:.95rem;flex-wrap:wrap}
+  .hitl-progress{height:8px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin:.5rem 0 .15rem}
+  .hitl-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .35s ease}
+  .all-approved{color:#86efac;background:rgba(34,197,94,.09);border:1px dashed rgba(34,197,94,.45);border-radius:10px;
+    padding:.6rem .8rem;font-size:.82rem;margin:0 0 .6rem}
+  .dept-card{border:1px solid var(--border);border-radius:11px;overflow:hidden;background:#0e1626;display:flex;flex-direction:column;min-width:0}
+  .dept-card.dept-card-action{border-color:rgba(245,158,11,.55);box-shadow:0 0 0 1px rgba(245,158,11,.12),0 8px 22px -14px rgba(245,158,11,.25)}
+  .dept-head{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;background:rgba(255,255,255,.025);border-bottom:1px solid var(--border);font-size:.82rem}
+  .dept-ico{font-size:1rem}
+  .dept-status{margin-left:auto;display:flex}
+  .dept-meta{font-size:.7rem;color:var(--muted);padding:.4rem .7rem}
+  .draft-label{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);padding:.3rem .7rem 0}
+  .draft-box{flex:1}
+  .draft-box pre{font-family:var(--mono);font-size:.7rem;line-height:1.55;background:#0a1120;border:1px solid var(--border);
+    border-radius:7px;margin:.4rem .7rem;padding:.5rem .6rem;overflow:auto;max-height:160px;white-space:pre-wrap;word-break:break-word;color:var(--text)}
+  .eval-box{margin:.2rem .7rem .6rem;padding:.45rem .6rem;border-radius:7px;font-size:.7rem;line-height:1.5}
+  .eval-pass{background:rgba(34,197,94,.09);border:1px dashed rgba(34,197,94,.4);color:#d1fae5}
+  .eval-fail{background:rgba(239,68,68,.08);border:1px dashed rgba(239,68,68,.45);color:#fecaca}
+  .eval-tag{font-weight:700}
+  .eval-fb{margin-top:.2rem;opacity:.9}
+  .dept-actions{padding:.55rem .7rem;display:flex;gap:.45rem;flex-wrap:wrap;border-top:1px solid var(--border);background:rgba(255,255,255,.02)}
+  .dept-actions.settled{color:var(--dim);font-size:.7rem}
+  .final-doc{border:1px solid rgba(34,197,94,.5);background:linear-gradient(180deg,rgba(34,197,94,.12),rgba(34,197,94,.03));
+    border-radius:12px;padding:.8rem 1rem;margin-top:.6rem}
+  .final-doc-head{font-weight:800;color:#86efac;font-size:.85rem;margin-bottom:.2rem}
+  .final-doc-body{font-size:.8rem;color:var(--text)}
+
+  /* ---------- tabla de tickets ---------- */
+  .t-fname{font-weight:600;color:var(--text);margin-top:.15rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .t-tid{font-size:.62rem;color:var(--dim)}
+
+  /* ---------- subir RFP ---------- */
+  .drop-zone{border:2px dashed var(--brd-strong);border-radius:12px;padding:.9rem 1.1rem;display:flex;align-items:center;
+    gap:1rem;flex-wrap:wrap;transition:border-color .15s,background .15s}
+  .drop-zone:hover{border-color:var(--accent)}
+  .drop-zone.drag{border-color:var(--accent);background:rgba(34,211,238,.07)}
+  .drop-ico{font-size:1.6rem;flex:none}
+  .drop-txt{flex:1;min-width:180px;font-size:.84rem}
+  .drop-main{color:var(--text)}
+  .fake{color:var(--accent);text-decoration:underline;cursor:pointer;font-weight:600}
+  .fake:hover{filter:brightness(1.2)}
+  .upload-file{color:var(--accent);font-size:.75rem;margin-top:.5rem;min-height:1em}
+  .upload-status{margin-top:.3rem;font-size:.78rem;color:var(--muted);min-height:1.2em}
+  .upload-status.ok{color:#86efac}
+  .upload-status.err{color:#fca5a5}
+
+  /* ---------- pie / responsive / motion ---------- */
+  .foot{display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0 .5rem;padding:.7rem .9rem;border:1px solid var(--border);
+    border-radius:12px;background:rgba(255,255,255,.02);font-size:.74rem;color:var(--muted);align-items:center}
+  .foot-step{display:inline-flex;align-items:center;gap:.4rem}
+  .n{display:inline-flex;align-items:center;justify-content:center;width:1.15rem;height:1.15rem;border-radius:50%;
+    background:linear-gradient(180deg,var(--accent),var(--blue));color:#04121a;font-weight:800;font-size:.68rem;flex:none}
+  @media(max-width:560px){
+    .top-right{width:100%}
+    .controls{flex-direction:column;align-items:stretch}
+    .btn-group{width:100%}
+    .btn-group .btn{flex:1}
+    .jwt{width:100%}
+    .jwt input{flex:1}
+    .card-bd{padding:.6rem}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
 </style>
 </head>
 <body>
-<h1>RFP Agent Observability</h1>
-<p class="dim" id="modebar">
-  Modo actual: <span class="mode rest" id="modeLabel">REST (con recarga manual)</span> —
-  <span id="statusText">cargando API…</span>
-</p>
 
-<div class="row">
-  <button id="refresh" title="Fetch manual a /api/*">🔄 Recargar ahora (REST)</button>
-  <button id="toggleSse" class="off" title="Abre /events con EventSource">📡 Conectar SSE (en vivo)</button>
-  <label class="dim">JWT: <input id="token" placeholder="vacío = demo abierta" size="26"></label>
-</div>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-ico">📡</span>
+    <div class="brand-txt">
+      <h1>RFP Agent Observability — Dashboard</h1>
+      <span class="small">REST manual vs SSE en vivo · parte del flujo de un RFP Agent</span>
+    </div>
+  </div>
+  <div class="top-right">
+    <span class="mode mode-rest" id="modeLabel">REST (recarga manual)</span>
+    <span class="statusline" id="statusText">cargando API…</span>
+  </div>
+</header>
 
-<div class="row">
-  <label class="dim"><strong>Subir un RFP (md/txt/pdf):</strong>
-    <input type="file" id="fileInput" accept=".md,.txt,.pdf">
-  </label>
-  <button id="uploadBtn" class="green">Subir y procesar</button>
-  <span class="dim" id="uploadStatus"></span>
-</div>
+<div class="wrap">
 
-<div class="cols">
-  <div class="card">
-    <h2>Tickets (RFP) <span class="dim" id="ticketCount"></span></h2>
-    <table>
-      <thead><tr><th>id</th><th>estado</th><th>deps</th><th>aprobación</th></tr></thead>
-      <tbody id="tickets"><tr><td class="dim" colspan="4">—</td></tr></tbody>
-    </table>
+  <!-- ===================== CONTROLES PARTE 1 / PARTE 2 ===================== -->
+  <div class="controls">
+    <div class="btn-group">
+      <button id="refresh" class="btn btn-rest" title="Fetch manual a /api/* — PARTE 1 (polling por botón)">🔄 Recargar ahora (REST)</button>
+      <button id="toggleSse" class="btn btn-live" title="Abre /events con EventSource — PARTE 2 (streaming)">📡 Conectar SSE (en vivo)</button>
+    </div>
+    <label class="jwt dim">🔑 JWT: <input id="token" type="text" placeholder="vacío = demo abierta"></label>
   </div>
 
-  <div class="card">
-    <h2>Detalle del ticket (HITL)</h2>
-    <pre id="ticketDetail" class="dim">Pulsa un ticket de la tabla para ver sus secciones y aprobar/rechazar cada departamento.</pre>
+  <!-- Hint pedagógico: cambia según el modo activo -->
+  <div class="mode-hint" id="modeHint"></div>
+
+  <!-- ===================== SUBIR RFP ===================== -->
+  <h2 style="margin-bottom:.5rem">📄 Subir un RFP</h2>
+  <div class="drop-zone" id="dropZone">
+    <span class="drop-ico">📂</span>
+    <span class="drop-txt"><span class="drop-main">Arrastra tu RFP aquí, o <span class="fake" id="browseLabel">elige un archivo</span>.</span><br>
+      <span class="dim">Aceptado: <code>.md</code> <code>.txt</code> <code>.pdf</code> — el agente lo procesará en background y verás el ticket nacer en la tabla.</span>
+    </span>
+    <span>
+      <input type="file" id="fileInput" accept=".md,.txt,.pdf" hidden>
+      <button id="uploadBtn" class="btn btn-cta">🚀 Subir y procesar</button>
+    </span>
+  </div>
+  <div class="upload-file dim" id="uploadFileLabel"></div>
+  <div class="upload-status" id="uploadStatus"></div>
+
+  <!-- ===================== GRID DE PANELES ===================== -->
+  <div class="grid" style="margin-top:1rem">
+
+    <!-- Tickets -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>🎫 Tickets (RFP)</h2>
+        <span class="count" id="ticketCount">0</span>
+      </div>
+      <div class="card-bd">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ticket</th><th>estado</th><th>deps</th><th>aprobación</th></tr></thead>
+            <tbody id="tickets"><tr><td class="dim" colspan="4">—</td></tr></tbody>
+          </table>
+        </div>
+        <div class="small" style="margin-top:.45rem">💡 Haz clic en una fila para abrir el HITL de aprobación.</div>
+      </div>
+    </div>
+
+    <!-- Detalle HITL -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>👤 Detalle del ticket (HITL)</h2>
+      </div>
+      <div class="card-bd ticket-detail">
+        <p class="dim" id="ticketDetail">Pulsa un ticket de la tabla para ver sus secciones y aprobar/rechazar cada departamento.</p>
+      </div>
+    </div>
+
+    <!-- Log REST -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>🪵 Log de eventos (<code>/api/log</code>)</h2>
+        <span class="count" id="logCount">0</span>
+      </div>
+      <div class="card-bd">
+        <div class="log-box" id="log">esperando…</div>
+      </div>
+    </div>
+
+    <!-- Agentes -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>🤖 Agentes</h2>
+      </div>
+      <div class="card-bd">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>agente</th><th>status</th><th>flows</th></tr></thead>
+            <tbody id="agents"><tr><td class="dim" colspan="3">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flows -->
+    <div class="card">
+      <div class="card-hd">
+        <h2>🔁 Flows</h2>
+      </div>
+      <div class="card-bd">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>flow</th><th>status</th><th>#tasks</th></tr></thead>
+            <tbody id="flows"><tr><td class="dim" colspan="3">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stream SSE -->
+    <div class="card span-wide">
+      <div class="card-hd">
+        <h2>⚡ Stream SSE en vivo (<code>/events</code>)</h2>
+        <span class="count" id="sseCounter">eventos: 0</span>
+        <span class="sse-state" id="sseState">● sin conexión</span>
+      </div>
+      <div class="card-bd">
+        <div class="log-box" id="sse">Conecta el SSE y mira cómo llegan los eventos sin recargar la página.</div>
+      </div>
+    </div>
+
   </div>
 
-  <div class="card">
-    <h2>Log de eventos (<code>/api/log</code>) <span class="dim" id="logCount"></span></h2>
-    <pre id="log" class="dim">esperando…</pre>
+  <!-- ===================== guía rápida ===================== -->
+  <div class="foot">
+    <span class="foot-step"><span class="n">1</span> Recarga manual (REST)</span>
+    <span class="foot-step"><span class="n">2</span> Flux agent procesa el RFP</span>
+    <span class="foot-step"><span class="n">3</span> Revisa tickets (HITL)</span>
+    <span class="foot-step"><span class="n">4</span> Aprobar / pedir cambios</span>
+    <span class="foot-step"><span class="n">5</span> Conectar SSE y verlo en vivo</span>
   </div>
 
-  <div class="card">
-    <h2>Agentes</h2>
-    <table><thead><tr><th>id</th><th>status</th><th>flows</th></tr></thead>
-    <tbody id="agents"><tr><td class="dim" colspan="3">—</td></tr></tbody></table>
-  </div>
-
-  <div class="card">
-    <h2>Flows</h2>
-    <table><thead><tr><th>flow</th><th>status</th><th>#tasks</th></tr></thead>
-    <tbody id="flows"><tr><td class="dim" colspan="3">—</td></tr></tbody></table>
-  </div>
-
-  <div class="card">
-    <h2>Stream SSE en vivo <span class="dim" id="sseState">(off)</span></h2>
-    <pre id="sse" class="dim">Conecta el SSE y mira cómo llegan los eventos sin recargar la página.</pre>
-  </div>
 </div>
 
 <script>
@@ -91,13 +389,57 @@ const statusEl = $('statusText');
 let es = null;           // EventSource activo
 let liveOn = false;      // modo SSE: NO recarga REST automática
 let selectedTicket = null;
+let sseEventCount = 0;   // contador de eventos SSE recibidos
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function pill(s){
-  const c = (s === 'done') ? 'ok'
-    : (['running','under_evaluation','waiting_for_approval','needs_human_review','analyzing','intake_complete','drafting'].includes(s) ? 'warn' : 'idle');
-  return `<span class="pill ${c}">${esc(s)}</span>`;
+function pill(level, label){               // pill(level, label) — label opcional, por defecto = level
+  const cls = ['ok','info','warn','idle','accent','mute','err'].includes(level) ? level : 'mute';
+  const pulse = level === 'warn' && (label === 'waiting_for_approval' || label === 'changes_requested' || label === 'needs_human_review') ? ' pulse' : '';
+  return `<span class="pill pill-${cls}${pulse}">${esc(label || level)}</span>`;
 }
+function statusRowCls(s){                  // clase de fila (borde semántico izquierdo)
+  if (['done','approved','pass','success','completed'].includes(s)) return 'tr-ok';
+  if (['error','rejected','fail','cancelled'].includes(s)) return 'tr-err';
+  if (s === 'discarded') return 'tr-mute';
+  if (['running','warn','waiting_for_approval','changes_requested','pending','needs_human_review','request_changes'].includes(s)) return 'tr-warn';
+  if (['under_evaluation','analyzing','intake_complete','drafting','processing'].includes(s)) return 'tr-info';
+  return 'idle';
+}
+function stCls(s){                         // nivel de pill para status REST/agent/flow
+  if (['done','approved','pass','success','completed'].includes(s)) return 'ok';
+  if (['error','rejected','fail','discarded','cancelled'].includes(s)) return 'err';
+  if (['running','warn','waiting_for_approval','changes_requested','pending','needs_human_review','request_changes'].includes(s)) return 'warn';
+  if (['under_evaluation','analyzing','intake_complete','drafting','processing','think'].includes(s)) return 'info';
+  return 'idle';
+}
+function ticketStCls(s){                   // nivel de pill para tickets (semántica de la clase)
+  switch(s){
+    case 'done': return 'ok';
+    case 'discarded': return 'mute';
+    case 'waiting_for_approval':
+    case 'changes_requested':
+    case 'needs_human_review': return 'warn';
+    case 'analyzing':
+    case 'intake_complete':
+    case 'under_evaluation': return 'info';
+    default: return 'idle';
+  }
+}
+function logClass(e){                      // clase CSS de la línea del log
+  const st = e.status || '';
+  if (['error','rejected','fail','cancelled','discarded'].includes(st)) return 'err';
+  if (['done','approved','pass','success','completed'].includes(st)) return 'ok';
+  if (['running','warn','pending','waiting_for_approval','changes_requested','needs_human_review'].includes(st)) return 'info';
+  return 'mute';
+}
+function evCls(st){                        // clase del evento SSE entrante
+  if (['error','rejected','fail','cancelled'].includes(st)) return 'ev-err';
+  if (['done','approved','pass','success','completed'].includes(st)) return 'ev-ok';
+  if (['running','in_progress','step','analyzing','drafting','evaluate','waiting_for_approval','pending'].includes(st)) return 'ev-info';
+  return '';
+}
+function fmtDB(v){ return (v === null || v === undefined || v === '') ? '—' : String(v); }
+function ts(){ return new Date().toLocaleTimeString('es-ES', {hour12:false}); }
 function authHeaders(){
   const t = $('token').value.trim();
   return t ? { 'Authorization': 'Bearer ' + t } : undefined;
@@ -124,17 +466,40 @@ async function loadREST(){
     const log = logR.items || [], tickets = ticketsR.tickets || [];
 
     $('agents').innerHTML = agents.map(a =>
-      `<tr><td>${esc(a.id)}</td><td>${pill(a.status)}</td><td>${(a.flows||[]).join(', ')}</td></tr>`).join('') || '<tr><td class="dim" colspan="3">—</td></tr>';
+      `<tr class="${statusRowCls(a.status)}"><td class="stcell mono">${esc(fmtDB(a.id))}</td>
+       <td>${pill(stCls(a.status), a.status)}</td>
+       <td>${(a.flows||[]).map(f=>`<span class="chip">${esc(f)}</span>`).join('') || '<span class="dim">—</span>'}</td></tr>`).join('')
+      || '<tr><td class="dim" colspan="3">—</td></tr>';
     $('flows').innerHTML = flows.map(f =>
-      `<tr><td>${esc(f.id)}</td><td>${pill(f.status)}</td><td>${f.task_count ?? ''}</td></tr>`).join('') || '<tr><td class="dim" colspan="3">—</td></tr>';
-    $('log').textContent = log.map(e =>
-      `[${e.event_name}] ${e.agent_id} :: ${e.action_type} :: ${e.status}${e.payload && e.payload.note ? ' :: ' + e.payload.note : ''}`)
-      .join('\n') || '(sin eventos todavía)';
+      `<tr class="${statusRowCls(f.status)}"><td class="stcell mono">${esc(fmtDB(f.id))}</td>
+       <td>${pill(stCls(f.status), f.status)}</td>
+       <td class="mono">${f.task_count ?? '—'}</td></tr>`).join('')
+      || '<tr><td class="dim" colspan="3">—</td></tr>';
+    $('log').innerHTML = log.map((e,i) => {
+      const note = (e.payload && e.payload.note) ? ` <span class="lnote">:: ${esc(e.payload.note)}</span>` : '';
+      return `<div class="log-line log-${logClass(e)}">
+        <span class="ln">${i+1}</span>
+        <span class="lt">[${esc(e.event_name)}]</span>
+        <span class="la">${esc(e.agent_id || '—')}</span>
+        <span class="lact">:: ${esc(e.action_type || '—')}</span>
+        <span class="lst">:: ${esc(e.status || '—')}</span>${note}</div>`;
+    }).join('') || '<div class="dim">(sin eventos todavía)</div>';
     $('logCount').textContent = `(${log.length})`;
-    $('ticketCount').textContent = `(${tickets.length})`;
+    $('ticketCount').textContent = fmtDB(tickets.length) + ' · <span style="color:var(--accent)">⭐ ' + tickets.filter(isUpload).length + ' tuyos</span>';
     renderTickets(tickets);
-    statusEl.textContent = `OK — ${agents.length} agents · ${flows.length} flows · ${log.length} eventos · ${tickets.length} tickets (recarga manual)`;
-  } catch(err){ statusEl.textContent = 'ERROR: ' + err; }
+    statusEl.textContent = `✓ ${agents.length} agents · ${flows.length} flows · ${log.length} eventos · ${tickets.length} tickets — recarga manual (REST)`;
+    statusEl.className = 'statusline ok';
+  } catch(err){
+    statusEl.textContent = '✗ ERROR: ' + err;
+    statusEl.className = 'statusline err';
+  }
+}
+
+/* Hint pedagógico: explica al alumno QUÉ está viendo según el modo activo. */
+function updateModeHint(){
+  $('modeHint').innerHTML = liveOn
+    ? '🎓 <b>PARTE 2 — SSE en vivo:</b> el navegador abrió un canal <code>EventSource /events</code>. Cada evento del agente refresca los paneles <b>solos</b>, sin recargar. Prueba a subir un RFP y observa cómo nace el ticket. Desconecta el SSE y todo vuelve a pararse.'
+    : '🎓 <b>PARTE 1 — REST con recarga manual:</b> esto es <b>polling manual</b>: los datos solo cambian cuando pulsas “🔄 Recargar ahora (REST)”. No hay <code>setInterval</code>: si no pulsas el botón, no pasa nada. Conéctate al SSE (PARTE 2) para que se actualicen solos.';
 }
 
 /* ======================================================================
@@ -144,46 +509,113 @@ async function loadREST(){
 function toggleSse(){
   if (es) {
     es.close(); es = null; liveOn = false;
-    $('sseState').textContent = '(off)'; $('toggleSse').textContent = '📡 Conectar SSE (en vivo)';
-    $('toggleSse').className = 'off'; setMode('rest');
+    $('sseState').textContent = '● sin conexión';
+    $('toggleSse').innerHTML = '📡 Conectar SSE (en vivo)';
+    $('toggleSse').className = 'btn btn-live';
+    setMode('rest');
     return;
   }
   const headers = authHeaders();
   es = new EventSource('/events', headers ? { headers } : undefined);
-  $('sseState').textContent = '(conectado)'; $('toggleSse').textContent = 'Desconectar SSE';
-  $('toggleSse').className = ''; setMode('sse'); liveOn = true;
+  $('sseState').textContent = '● conectado';
+  $('toggleSse').innerHTML = '⏹ Desconectar SSE';
+  $('toggleSse').className = 'btn btn-off';
+  setMode('sse'); liveOn = true;
   const sse = $('sse');
-  sse.textContent = 'Esperando eventos en vivo…\n';
+  sse.innerHTML = '<div class="dim">Esperando eventos en vivo…</div>';
   // al recibir un evento -> refrescar TODOS los paneles SIN recarga manual
   es.addEventListener('agent_step', e => { prependSse(e.data); loadREST(); });
   es.addEventListener('agent_status_changed', e => { prependSse(e.data); loadREST(); });
-  es.onopen = () => { sse.textContent = '[SSE conectado — actualización automática]' + '\n' + sse.textContent; };
-  es.onerror = () => { sse.textContent = '[retrying…]' + '\n' + sse.textContent; };
+  es.onopen = () => { prependSystem('SSE conectado — actualización automática'); statusEl.textContent = 'SSE conectado: los eventos refrescan los paneles solos'; statusEl.className = 'statusline ok'; };
+  es.onerror = () => { prependSystem('reintentando…'); statusEl.textContent = 'SSE: error de red, reintentando…'; statusEl.className = 'statusline err'; };
 }
-function prependSse(data){
+function sseRaw(raw){
+  const stt = ts();
+  let cls = 'ev', tag = 'evento';
+  try {
+    const j = JSON.parse(raw);
+    const st = j.status || j.action_type || '';
+    cls = 'ev ' + evCls(st);
+    tag = j.event_name || 'evento';
+    return `<div class="sse-line ${cls}">
+      <span class="ts">${esc(stt)}</span>
+      <span class="lt">${esc(tag)}</span>
+      <span><code>${esc(raw)}</code></span></div>`;
+  } catch(_){
+    return `<div class="sse-line ev"><span class="ts">${esc(stt)}</span><span><code>${esc(raw)}</code></span></div>`;
+  }
+}
+function prependSse(raw){
   const sse = $('sse');
-  sse.textContent = data + '\n' + sse.textContent;
-  if (sse.textContent.length > 8000) sse.textContent = sse.textContent.slice(0, 8000);
-  sse.className = 'ev';
+  sseEventCount++;
+  $('sseCounter').textContent = `eventos: ${sseEventCount}`;
+  if (sse.innerHTML.length > 12000) sse.innerHTML = sse.innerHTML.slice(0, 12000);
+  sse.insertAdjacentHTML('afterbegin', sseRaw(raw));
+  if (sse.childElementCount > 80) sse.removeChild(sse.lastElementChild);
+}
+function prependSystem(msg){ // línea de sistema (no JSON)
+  const sse = $('sse');
+  if (sse.innerHTML.length > 12000) sse.innerHTML = sse.innerHTML.slice(0, 12000);
+  sse.insertAdjacentHTML('afterbegin',
+    `<div class="sse-line ev-info"><span class="ts">${esc(ts())}</span><span class="lt">sistema</span><span><code>${esc(msg)}</code></span></div>`);
+  if (sse.childElementCount > 80) sse.removeChild(sse.lastElementChild);
 }
 function setMode(m){
-  $('modeLabel').textContent = m === 'sse' ? 'SSE (en vivo, sin recarga)' : 'REST (con recarga manual)';
-  $('modeLabel').className = 'mode ' + (m === 'sse' ? 'sse' : 'rest');
+  const el = $('modeLabel');
+  if (m === 'sse') {
+    el.textContent = 'SSE (en vivo, sin recarga)';
+    el.className = 'mode mode-sse';
+    document.body.dataset.mode = 'sse';
+  } else {
+    el.textContent = 'REST (recarga manual)';
+    el.className = 'mode mode-rest';
+    document.body.dataset.mode = 'rest';
+  }
+  updateModeHint();
 }
 
 /* ======================================================================
    TICKETS + HITL (Part 3) — listar, ver detalle, aprobar/rechazar
+   Un ticket "tuyo" es un upload del alumno (rfp_id empieza por upload_).
+   Los uploads van primero y llevan badge ⭐ para no perderse entre seeds.
    ====================================================================== */
+function isUpload(t){
+  return typeof t.rfp_id === 'string' && t.rfp_id.indexOf('upload_') === 0;
+}
+function shortName(rfp){
+  // upload_1793214574_Datos_en_Movimiento -> 'Datos_en_Movimiento'
+  const s = String(rfp || '');
+  const m = s.match(/^upload_\d+_(.+)$/);
+  return m ? m[1] : s;
+}
 function renderTickets(tickets){
-  $('tickets').innerHTML = tickets.map(t => {
-    const deps = (t.drafting_order || []).join(', ') || '—';
+  const sorted = [...tickets].sort((a,b) => (isUpload(b) ? 1 : 0) - (isUpload(a) ? 1 : 0));
+  $('tickets').innerHTML = sorted.map(t => {
+    const mine = isUpload(t);
+    const name = mine ? shortName(t.rfp_id) : (t.rfp_id || t.ticket_id);
+    const deps = (t.drafting_order || []).map(d => `<span class="chip">${esc(d)}</span>`).join(' ') || '<span class="dim">—</span>';
     let aprob = '—';
     if (t.approvals && Object.keys(t.approvals).length) {
-      aprob = Object.entries(t.approvals).map(([d, r]) =>
-        `<span class="pill ${r.status==='approved'?'ok':r.status==='rejected'?'err':r.status==='changes_requested'?'warn':'idle'}">${esc(d)}:${r.status}</span>`).join(' ');
+      const entries = Object.entries(t.approvals);
+      const a = entries.map(([d, r]) => `${esc(d)}:${r.status}`).join(', ');
+      const total = entries.length;
+      const done = entries.filter(([,r]) => r.status === 'approved').length;
+      aprob = `${done}/${total} ${done === total ? '✅' : ''}`;
+      aprob = `<span class="small">${aprob}</span> ` + entries.map(([d, r]) => {
+        const rcls = r.status === 'approved' ? 'ok' : r.status === 'rejected' ? 'err' : r.status === 'changes_requested' ? 'warn' : 'idle';
+        return `<span class="pill pill-${rcls}">${esc(d)}:${esc(r.status||'—')}</span>`;
+      }).join(' ');
     }
-    return `<tr style="cursor:pointer" onclick="selectTicket('${esc(t.ticket_id)}')">
-      <td>${esc(t.ticket_id)}</td><td>${pill(t.status)}</td><td class="dept">${deps}</td><td>${aprob}</td></tr>`;
+    const trcls = statusRowCls(t.status);
+    return `<tr class="clickable ${trcls}" onclick="selectTicket('${esc(t.ticket_id)}')">
+      <td class="stcell mono">
+        ${mine ? '<span class="pill pill-accent" title="Subido por ti">⭐ tuyo</span>' : '<span class="pill pill-mute" title="Seed de demostración">seed</span>'}
+        <div class="t-fname">${esc(name)}</div>
+        <div class="t-tid">${esc(t.ticket_id)}</div>
+      </td>
+      <td>${pill(ticketStCls(t.status), t.status)}</td>
+      <td class="dept">${deps}</td>
+      <td>${aprob}</td></tr>`;
   }).join('') || '<tr><td class="dim" colspan="4">(sin tickets)</td></tr>';
 }
 
@@ -192,69 +624,191 @@ async function selectTicket(ticketId){
   try {
     const d = await jfetch('/api/tickets/' + encodeURIComponent(ticketId));
     const t = d.ticket;
-    let html = `<b>${esc(t.ticket_id)}</b> — ${pill(t.status)}<br>rfp: ${esc(t.rfp_id || '—')}<br>`;
-    if (t.metadata) html += `client: ${esc(t.metadata.client_hq || '—')}<br>`;
-    html += `<hr>`;
-    // secciones generadas (drafts) + evaluación
     const deps = t.drafting_order || [];
-    if (!deps.length) { html += '<span class="dim">sin secciones</span>'; }
-    for (const dept of deps) {
-      const draft = t.drafts && t.drafts[dept];
-      const ev = t.evaluations && t.evaluations[dept];
-      const ap = t.approvals && t.approvals[dept];
-      html += `<div class="dept"><b>${esc(dept)}</b> `;
-      if (draft) html += `<span class="dim">(iter ${draft.iteration})</span>`;
-      if (ev) html += ` ${pill(ev.overall_pass ? 'pass' : 'fail')}${esc(ev.overall_pass ? '' : ' ' + (ev.feedback_for_generator||'').slice(0,80))}`;
-      html += `<br><pre class="small">${esc(draft ? draft.content : '(sin draft)')}</pre>`;
-      if (ap) {
-        const st = ap.status;
-        html += `<span class="dim">aprobación: ${esc(st)}${ap.comment ? ' — ' + esc(ap.comment) : ''}</span><br>`;
-        if (st === 'waiting_for_approval' || st === 'pending') {
-          html += `<button class="green" onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','approve')">✔ aprobar</button>
-                   <button class="red"   onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','reject')">✘ rechazar</button>
-                   <button onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','request_changes')">↻ pedir cambios</button>`;
-        }
-      }
-      html += `<hr>`;
+    let html = '';
+
+    // --- header del ticket ---
+    html += `<div class="detail-title">
+      <span style="font-size:1.1rem">🎫</span>
+      <span class="mono" style="font-weight:700;font-size:.95rem">${esc(t.ticket_id)}</span>
+      ${pill(ticketStCls(t.status), t.status)}
+    </div>`;
+    html += `<div class="detail-head">
+      <span class="dim">rfp: <code>${esc(t.rfp_id || '—')}</code></span>`;
+    if (isUpload(t)) html += ` <span class="pill pill-accent" title="Subido por ti">⭐ tuyo</span>`;
+    if (t.metadata) html += ` <span class="dim">client: ${esc(fmtDB(t.metadata.client_hq))}</span>`;
+    html += `</div>`;
+
+    // --- barra de progreso HITL ---
+    if (deps.length && t.approvals) {
+      const total = deps.length;
+      const approved = deps.filter(d => t.approvals[d] && t.approvals[d].status === 'approved').length;
+      const pct = Math.round((approved / total) * 100);
+      html += `<div class="hitl-progress"><div class="hitl-progress-bar" style="width:${pct}%"></div></div>`;
+      html += `<div class="small" style="margin-bottom:.6rem">${approved}/${total} departamentos aprobados</div>`;
     }
+
+    // --- si todos aprobados y hay final_document ---
     if (t.final_document) {
-      html += `<b>Final document:</b> ${esc(t.final_document.doc_id)} (${esc(t.final_document.currency)})`;
+      html += `<div class="all-approved">
+        <div style="font-size:1.1rem">📄 Documento final generado</div>
+        <div style="margin-top:.25rem">
+          <span class="dim">ID:</span> <code>${esc(t.final_document.doc_id)}</code>
+          <span class="dim" style="margin-left:.5rem">moneda:</span> <code>${esc(t.final_document.currency)}</code>
+        </div>
+      </div>`;
     }
+
+    // --- secciones generadas (drafts) como tarjetas ---
+    if (!deps.length) {
+      html += '<div class="dim" style="padding:.5rem 0">(sin secciones aún — esperando al agente generador)</div>';
+    } else {
+      // ordenar: los que están waiting_for_approval primero
+      const sorted = [...deps].sort((a,b) => {
+        const sa = t.approvals && t.approvals[a] ? t.approvals[a].status : '';
+        const sb = t.approvals && t.approvals[b] ? t.approvals[b].status : '';
+        if (sa === 'waiting_for_approval' && sb !== 'waiting_for_approval') return -1;
+        if (sa !== 'waiting_for_approval' && sb === 'waiting_for_approval') return 1;
+        return 0;
+      });
+      html += `<div class="dept-grid">`;
+      for (const dept of sorted) {
+        const draft = t.drafts && t.drafts[dept];
+        const ev = t.evaluations && t.evaluations[dept];
+        const ap = t.approvals && t.approvals[dept];
+        const isActionable = ap && (ap.status === 'waiting_for_approval' || ap.status === 'pending');
+        const cardCls = isActionable ? 'dept-card dept-card-action' : 'dept-card';
+
+        html += `<div class="${cardCls}">`;
+        // head
+        html += `<div class="dept-head">`;
+        html += `<span class="dept-ico">🏛</span>`;
+        html += `<span style="font-weight:700">${esc(dept)}</span>`;
+        if (draft) html += `<span class="dim">(iter ${draft.iteration})</span>`;
+        html += `<span class="dept-status">`;
+        if (ap) html += pill(
+          ap.status === 'approved' ? 'ok' : ap.status === 'rejected' ? 'err' : ap.status === 'changes_requested' ? 'warn' : 'idle', ap.status);
+        html += `</span></div>`;
+
+        // evaluacion
+        if (ev) {
+          const evCls = ev.overall_pass ? 'eval-pass' : 'eval-fail';
+          const evLabel = ev.overall_pass ? '✅ pass' : '❌ fail';
+          html += `<div class="eval-box ${evCls}">`;
+          html += `<span class="eval-tag">Evaluación:</span> ${evLabel}`;
+          if (ev.feedback_for_generator) {
+            html += `<div class="eval-fb">${esc(ev.feedback_for_generator)}</div>`;
+          }
+          html += `</div>`;
+        }
+
+        // draft content
+        if (draft && draft.content) {
+          html += `<div class="draft-label">📝 borrador</div>`;
+          html += `<div class="draft-box"><pre>${esc(draft.content)}</pre></div>`;
+        } else {
+          html += `<div class="draft-label"><span class="dim">📝 (sin borrador aún)</span></div>`;
+        }
+
+        // approval status + comment
+        if (ap) {
+          if (ap.comment) {
+            html += `<div class="dept-meta"><span class="dim">comentario:</span> ${esc(ap.comment)}</div>`;
+          }
+        }
+
+        // acciones
+        if (isActionable) {
+          html += `<div class="dept-actions">`;
+          html += `<span style="font-size:.7rem;color:var(--muted);margin-right:.2rem">Decisión:</span>`;
+          html += `<button class="btn btn-green" onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','approve')">✔ Aprobar</button>`;
+          html += `<button class="btn btn-amber" onclick="const c=window.prompt('Comentario para ${esc(dept)} (request_changes):','');if(c!==null) decide('${esc(t.ticket_id)}','${esc(dept)}','request_changes',c)">↻ Pedir cambios</button>`;
+          html += `<button class="btn btn-red" onclick="const c=window.prompt('Comentario para ${esc(dept)} (reject):','');if(c!==null) decide('${esc(t.ticket_id)}','${esc(dept)}','reject',c)">✘ Rechazar</button>`;
+          html += `</div>`;
+        } else if (ap && ap.status === 'approved') {
+          html += `<div class="dept-actions settled"><span>✅ Aprobado</span></div>`;
+        } else if (ap && ap.status === 'rejected') {
+          html += `<div class="dept-actions settled"><span>❌ Rechazado</span></div>`;
+        } else if (ap && ap.status === 'changes_requested') {
+          html += `<div class="dept-actions settled"><span>↻ Cambios solicitados</span></div>`;
+        }
+
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+
     $('ticketDetail').innerHTML = html;
   } catch(err){ $('ticketDetail').textContent = 'ERROR: ' + err; }
 }
 
-async function decide(ticketId, dept, decision){
+async function decide(ticketId, dept, decision, precomputedComment){
   try {
-    const r = await jfetch('/api/tickets/' + encodeURIComponent(ticketId) + '/approve', {
+    let comment = precomputedComment || '';
+    if (!precomputedComment && (decision === 'reject' || decision === 'request_changes')) {
+      comment = (window.prompt('Comentario para ' + dept + ' (' + decision + '):', '') || '').trim();
+    }
+    const r = await jfetch('/api/tickets/' + encodeURIComponent(ticketId) + '/approve/' + encodeURIComponent(dept), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision })
+      body: JSON.stringify({ decision, comment })
     });
     statusEl.textContent = `✔ ${dept} → ${decision} (ticket ${ticketId})`;
+    statusEl.className = 'statusline ok';
     await selectTicket(ticketId);   // refrescar detalle
     loadREST();                     // refrescar tabla
-  } catch(err){ statusEl.textContent = 'ERROR: ' + err; }
+  } catch(err){
+    statusEl.textContent = '✗ ERROR: ' + err;
+    statusEl.className = 'statusline err';
+  }
 }
 
 /* ======================================================================
    SUBIR UN RFP (md/txt/pdf) — POST /api/upload
    ====================================================================== */
+const fileInput = $('fileInput');
+const dropZone = $('dropZone');
+const browseLabel = $('browseLabel');
+const dzStatusEl = $('uploadFileLabel');
+let selectedFile = null;
+
+function dzLabel(f){
+  if (!f) { dzStatusEl.textContent = ''; return; }
+  const kb = f.size > 0 ? (f.size / 1024).toFixed(1) + ' kB' : '0 kB';
+  dzStatusEl.textContent = `📎 ${f.name} — ${kb}`;
+}
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) { selectedFile = fileInput.files[0]; dzLabel(selectedFile); }
+});
+browseLabel.addEventListener('click', e => { e.preventDefault(); fileInput.click(); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) { selectedFile = f; dzLabel(f); }
+});
+
 $('uploadBtn').onclick = async () => {
-  const f = $('fileInput').files[0];
-  if (!f) { $('uploadStatus').textContent = 'elige un archivo primero'; return; }
+  const f = selectedFile || fileInput.files[0];
+  if (!f) { $('uploadStatus').textContent = '⚠ elige un archivo primero (.md, .txt o .pdf)'; $('uploadStatus').className = 'upload-status err'; return; }
   const fd = new FormData();
   fd.append('file', f);
-  $('uploadStatus').textContent = `subiendo ${f.name}…`;
+  $('uploadStatus').textContent = `⏳ subiendo ${f.name}…`;
+  $('uploadStatus').className = 'upload-status';
   try {
     const h = authHeaders() || {};
     const r = await fetch('/api/upload', { method: 'POST', headers: h, body: fd });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
     $('uploadStatus').textContent = `✔ ${j.filename} procesándose en background (${j.size} bytes). Verás el ticket en la tabla.`;
-    setTimeout(() => { $('uploadStatus').textContent = ''; }, 8000);
+    $('uploadStatus').className = 'upload-status ok';
+    setTimeout(() => { $('uploadStatus').textContent = ''; $('uploadStatus').className = 'upload-status'; }, 8000);
     loadREST();
-  } catch(err){ $('uploadStatus').textContent = 'ERROR: ' + err; }
+  } catch(err){
+    $('uploadStatus').textContent = '✗ ERROR: ' + err;
+    $('uploadStatus').className = 'upload-status err';
+  }
 };
 
 $('refresh').onclick = () => { if (!liveOn) loadREST(); };
@@ -263,6 +817,7 @@ $('token').onchange = () => { if (es) { es.close(); es = null; toggleSse(); } };
 
 /* arranque: PARTE 1 (REST manual). NO hay setInterval — el profesor
    recarga pulsando el botón. Al conectar SSE, la recarga pasa a ser automática. */
+setMode('rest');   // para pintar el badge y el hint pedagógico en el estado inicial
 loadREST();
 window.selectTicket = selectTicket;
 window.decide = decide;
