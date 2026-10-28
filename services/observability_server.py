@@ -197,27 +197,101 @@ def run_live_demo(stop: threading.Event) -> None:
 
 INDEX_HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<title>RFP Agent Observability</title>
+<title>RFP Agent Observability — REST dashboard</title>
 <style>
- body{font-family:system-ui,sans-serif;margin:2rem;background:#0f172a;color:#e2e8f0}
- pre{background:#1e293b;padding:1rem;border-radius:8px;overflow:auto}
- .dim{color:#94a3b8}
+  body{font-family:system-ui,sans-serif;margin:2rem;background:#0f172a;color:#e2e8f0}
+  h1{font-size:1.4rem}
+  .dim{color:#94a3b8;font-size:.85rem}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1rem}
+  .card h2{margin:0 0 .5rem;font-size:1rem;color:#7dd3fc}
+  .card pre{background:#0f172a;padding:.6rem;border-radius:6px;overflow:auto;max-height:38vh;font-size:.8rem}
+  .card table{width:100%;border-collapse:collapse;font-size:.8rem}
+  .card td,.card th{padding:.25rem .4rem;border-bottom:1px solid #334155;text-align:left}
+  .pill{display:inline-block;padding:.1rem .45rem;border-radius:999px;font-size:.72rem}
+  .ok{background:#14532d;color:#86efac}.warn{background:#78350f;color:#fcd34d}
+  .idle{background:#334155;color:#e2e8f0}
+  button{background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:.4rem .8rem;cursor:pointer}
+  button.off{background:#64748b}
+  .ev{color:#86efac}
+  .sse-on .api-only{display:none}
 </style></head>
 <body>
-<h1>RFP Agent Observability — SSE dashboard</h1>
-<p>Live <code>agent_step</code>/<code>agent_status_changed</code> events from the running
-RFP pipeline. Open a second tab to <code>/api/log</code> or <code>/api/tasks/{id}</code>.</p>
-<pre id="log">waiting for events…</pre>
+<h1>RFP Agent Observability <span class="dim" id="status">(cargando API…)</span></h1>
+<p class="dim">
+  Data via REST (<code>/api/agents</code>, <code>/api/flows</code>, <code>/api/log</code>) — no requiere SSE.
+  Refresh cada 2&nbsp;s. <button id="refresh">Refresh ahora</button>
+  <button id="toggleSse" class="off">Conectar SSE /events</button>
+</p>
+<label class="dim">JWT (si el server tiene <code>SSE_JWT_SECRET</code>): <input id="token" placeholder="dejar vacío si es demo abierta" size="36"></label>
+
+<div class="cols">
+  <div class="card"><h2>Agents</h2>
+    <table><thead><tr><th>id</th><th>status</th><th>flows</th></tr></thead>
+    <tbody id="agents"><tr><td class="dim" colspan="3">—</td></tr></tbody></table>
+  </div>
+  <div class="card"><h2>Flows</h2>
+    <table><thead><tr><th>flow</th><th>status</th><th>#tasks</th></tr></thead>
+    <tbody id="flows"><tr><td class="dim" colspan="3">—</td></tr></tbody></table>
+  </div>
+  <div class="card"><h2>Log reciente (<code>/api/log</code>)</h2>
+    <pre id="log" class="api-only">esperando…</pre>
+  </div>
+  <div class="card"><h2>Stream SSE (/events) <span class="dim" id="sseState">off</span></h2>
+    <pre id="sse" class="dim">Pulsa "Conectar SSE" para ver eventos en vivo…
+Esto es el punto de la clase (EventSource o fetch+ReadableStream con JWT).</pre>
+  </div>
+</div>
+
 <script>
- const log = document.getElementById('log');
- const es = new EventSource('/events');
- es.addEventListener('agent_step', e => {
-   log.textContent = e.data + '\\n' + log.textContent;
- });
- es.addEventListener('agent_status_changed', e => {
-   log.textContent = e.data + '\\n' + log.textContent;
- });
- es.onerror = () => log.textContent = '[connection retrying…]';
+const $ = id => document.getElementById(id);
+const statusEl = $('status');
+let es = null;
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pill(s){
+  const c = s === 'done' ? 'ok' : (s === 'running' || s === 'under_evaluation' || s === 'needs_human_review' ? 'warn' : 'idle');
+  return `<span class="pill ${c}">${esc(s)}</span>`;
+}
+
+async function loadAll(){
+  try {
+    const [agentsR, flowsR, logR] = await Promise.all([
+      fetch('/api/agents'), fetch('/api/flows'), fetch('/api/log?per_page=20')
+    ]);
+    const agents = (await agentsR.json()).agents || [];
+    const flows = (await flowsR.json()).flows || [];
+    const log = (await logR.json()).items || [];
+
+    $('agents').innerHTML = agents.map(a =>
+      `<tr><td>${esc(a.id)}</td><td>${pill(a.status)}</td><td>${(a.flows||[]).join(', ')}</td></tr>`).join('');
+    $('flows').innerHTML = flows.map(f =>
+      `<tr><td>${esc(f.id)}</td><td>${pill(f.status)}</td><td>${f.task_count ?? ''}</td></tr>`).join('');
+    $('log').textContent = log.map(e =>
+      `[${e.event_name}] ${e.agent_id} :: ${e.action_type} :: ${e.status}${e.payload && e.payload.note ? ' :: ' + e.payload.note : ''}`)
+      .join('\\n') || '(sin eventos todavía)';
+    statusEl.textContent = `OK — ${agents.length} agents · ${flows.length} flows · ${log.length} eventos`;
+  } catch(err){
+    statusEl.textContent = 'ERROR: ' + err;
+  }
+}
+
+function toggleSse(){
+  if (es) { es.close(); es = null; $('sseState').textContent = 'off'; $('toggleSse').textContent = 'Conectar SSE /events'; $('toggleSse').className = 'off'; return; }
+  const token = $('token').value.trim();
+  const headers = token ? { 'Authorization': 'Bearer ' + token } : undefined;
+  es = new EventSource('/events', headers ? { headers } : undefined);
+  $('sseState').textContent = 'on'; $('toggleSse').textContent = 'Desconectar'; $('toggleSse').className = '';
+  const sse = $('sse');
+  es.addEventListener('agent_step', e => { sse.textContent = e.data + '\\n' + sse.textContent; sse.className = ''; });
+  es.addEventListener('agent_status_changed', e => { sse.textContent = e.data + '\\n' + sse.textContent; sse.className = ''; });
+  es.onerror = () => { sse.textContent = '[retrying…]\\n' + sse.textContent; };
+}
+
+$('refresh').onclick = loadAll;
+$('toggleSse').onclick = toggleSse;
+loadAll();
+setInterval(loadAll, 2000);
 </script></body></html>
 """
 
