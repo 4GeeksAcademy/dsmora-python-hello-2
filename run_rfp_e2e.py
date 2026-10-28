@@ -92,8 +92,15 @@ def write_seed(key: str, target_dir: str = "data/raw") -> str:
     return str(dest)
 
 
-def run_one(pdf_path: str, store: Store, runner: RfpRunner) -> Ticket:
-    """Run the full Parts 1→2→3 pipeline on one document."""
+def run_one(pdf_path: str, store: Store, runner: RfpRunner,
+            auto_approve: bool = True) -> Ticket:
+    """Run the full Parts 1→2→3 pipeline on one document.
+
+    ``auto_approve=True`` reproduces the deterministic E2E (every department
+    is approved automatically) — used by the CLI, the tests and the demo seed.
+    ``auto_approve=False`` stops Part 3 at ``waiting_for_approval`` so a
+    *human* can approve/reject each department from the dashboard (HITL).
+    """
     ticket = Ticket(
         ticket_id=new_id("ticket_"),
         rfp_id=Path(pdf_path).stem,
@@ -125,9 +132,14 @@ def run_one(pdf_path: str, store: Store, runner: RfpRunner) -> Ticket:
         return ticket
     print(f" {ticket.status}")
 
-    # Part 3 — Approval (with simulated human resume, reproducible E2E)
+    # Part 3 — Approval
     print(f"  Part 3 (approval)...", end="", flush=True)
-    _run_approval_with_resumes(ticket.ticket_id, store)
+    if auto_approve:
+        # deterministic E2E: every department auto-approved -> done
+        _run_approval_with_resumes(ticket.ticket_id, store)
+    else:
+        # HITL: open the per-department approvals and pause for a human.
+        runner.run_part3_approval(ticket)
     ticket = runner.store.load(ticket.ticket_id) or ticket
     print(f" {ticket.status}")
     if ticket.status == Status.DONE.value:

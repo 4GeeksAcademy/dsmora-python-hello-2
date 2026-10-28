@@ -114,6 +114,92 @@ añadir la verificación de `Authorization: Bearer …`.
 
 ---
 
+## Dashboard con 2 fases pedagógicas (REST → SSE)
+
+El dashboard (`services/dashboard.html`, en español) está pensado para enseñar
+la diferencia entre **polling** y **streaming en tiempo real** en dos pasos:
+
+1. **PARTE 1 — REST (con recarga manual).** El tablero NO se actualiza solo:
+   pulsas `🔄 Recargar ahora (REST)` y hace `fetch` a `/api/agents`,
+   `/api/flows`, `/api/log`, `/api/tickets`. No hay `setInterval`: se ve
+   claramente cómo "refrescas a mano" el estado.
+
+2. **PARTE 2 — SSE (en vivo, sin recarga).** Pulsas `📡 Conectar SSE (en vivo)`
+   y se abre un `EventSource('/events')`. Cada `agent_step` /
+   `agent_status_changed` se **prepend** al panel de eventos y dispara una
+   recarga automática del resto del tablero — sin recargar la página.
+
+Además el dashboard incluye:
+- **Subir un RFP** (`POST /api/upload`, campo `file` multipart).
+- **Tabla de tickets** con estado y aprobaciones; clic en una fila muestra
+  drafts + evaluaciones + el punto de aprobación humana (HITL).
+- **Aprobación humana** por departamento: `Aprobar` / `Solicitar cambios` /
+  `Rechazar` (ver sección HITL abajo).
+
+---
+
+## Integración con un LLM real (opcional)
+
+Por defecto el pipeline es **determinista** (sin red). Se puede conectar a un
+LLM compatible con OpenAI (endpoint de 4Geeks) leyendo el `.env`:
+
+```bash
+# .env (NO se sube a git; .env.example documenta las claves)
+LLM_API_URL=https://llm.4geeks.ai/v1
+LLM_MODEL=madrid-spain/opnerouter/openai/gpt-6-luna
+LLM_API_KEY=sk-...
+RFP_USE_LLM=1          # activa el uso del LLM (0/ausente -> determinista)
+```
+
+Con `RFP_USE_LLM=1`, el **generador** (`part2_evaluation.py`) llama al modelo
+para redactar los borradores por departamento (`source=llm` en la traza) y
+**fallback deterministico** si la red/modelo no responde. La integración está
+en `rfp_pipeline/llm.py` (cliente OpenAI-compatible con **solo stdlib**: `urllib`).
+
+El servidor, `run_rfp_e2e.py` y `docker-compose.yml` leen estas variables.
+En Docker, `docker-compose.yml` usa `env_file: .env`, así que el contenedor
+activa el LLM automáticamente si las claves están presentes.
+
+---
+
+## Cargar un nuevo RFP (¿cómo se sube?)
+
+Hay **cuatro** formas según el contexto:
+
+1. **Dashboard (subida por navegador).** En el dashboard `POST /api/upload`
+   con un campo `file` (o arrastra el archivo). El servidor guarda el RFP en
+   `data/raw/` y lo procesa en segundo plano (no bloquea la UI).
+   `curl -F "file=@data/raw/mi-rfp.md" http://localhost:8000/api/upload`
+2. **CLI con ruta.** `uv run rfp-e2e <ruta/al/archivo.md>`
+3. **Seed built-in.** Añade la entrada a `SEEDS` en `run_rfp_e2e.py` (clave
+   `valid`/`informal`/`invalid`) — estos son los seeds del demo y de los tests.
+4. **Docker.** Suelta el archivo en `./data/raw/` local (volumen bind-mounted
+   `./data:/app/data:rw`) y el pipeline del contenedor lo verá.
+
+## Control humano en el bucle (HITL)
+
+El demo deja el seed **"informal"** en `waiting_for_approval` a propósito, y
+cada RFP **subido por el dashboard** también — para que un humano apruebe.
+
+- Endpoint: `POST /api/tickets/<ticket_id>/approve/<department>`
+  con body `{"decision": "approve|reject|request_changes", "comment": "..."}`.
+- Hasta que **todos** los departamentos estén `approved`, el ticket permanece
+  en `waiting_for_approval` (sin documento final). Con todos aprobados → `done`
+  y se genera el documento final.
+- `request_changes` / `reject` bloquean la finalización (pedagogía: el rechazo
+  requiere re-evaluación humana/arbitraje).
+
+Nuevos endpoints REST de tickets:
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/tickets` | GET | Lista resumen de tickets |
+| `/api/tickets/<id>` | GET | Detalle (drafts, evaluaciones, aprobaciones) |
+| `/api/upload` | POST | Sube un RFP (multipart `file`), procesa en bg |
+| `/api/tickets/<id>/approve/<dept>` | POST | Decisión humana (HITL) |
+
+---
+
 ## Docker (todo se levanta con docker)
 
 Construimos con la imagen oficial de **uv** y `uv sync --frozen`

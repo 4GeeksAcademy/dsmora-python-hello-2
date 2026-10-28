@@ -20,6 +20,24 @@ El base `main.py` del starter 4Geeks se conserva tal cual; esta rama añade
 `agentic_workflow_example/`, `services/`, `tests/`, `run_rfp_e2e.py` y la
 configuración de `uv` (`pyproject.toml` + `uv.lock`) + Docker.
 
+### Novedades de esta rama
+
+- **Dashboard con 2 modos pedagógicos:** PARTE 1 (REST con recarga manual) y
+  PARTE 2 (SSE en vivo sin recarga) — para ver la diferencia entre polling y
+  streaming.
+- **Subida de RFP** desde el dashboard (`POST /api/upload` multipart).
+- **Control humano (HITL):** cada RFP subido se detiene en `waiting_for_approval`
+  para que un humano apruebe/rechace/solicite cambios por departamento.
+- **LLM opcional:** si existe `.env` con claves de 4Geeks y `RFP_USE_LLM=1`,
+  los borradores los genera el modelo (fallback deterministico si falla la red).
+
+### ¿Cómo subir un nuevo RFP?
+
+1. **Dashboard** — arrastra o selecciona archivo en `http://localhost:8000/`.
+2. **CLI:** `uv run rfp-e2e <ruta/al/archivo.md>`.
+3. **Añadir seed:** en `run_rfp_e2e.py`, agrega entrada a `SEEDS`.
+4. **Docker:** suelta el archivo en `./data/raw/` (bind-mounted en el contenedor).
+
 ### Contribuidores
 
 Esta plantilla fue creada como parte de los [Recursos de Python de 4Geeks](https://4geeks.com/es/technology/python) para el aprendizaje en [4Geeks.com](https://4geeks.com) por [Alejandro Sanchez](https://twitter.com/alesanchezr) y [muchos otros contribuyentes](https://github.com/4GeeksAcademy/python-hello/graphs/contributors).

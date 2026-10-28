@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+from .llm import call_llm, enabled as llm_enabled, model_name  # noqa: F401
 from .models import (ActionType, ComplianceResult, DraftSection,
                      EvaluationResult, ReadabilityMetrics, ReadabilityResult,
                      RelevanceResult, Status, Ticket)
@@ -73,18 +74,32 @@ def check_compliance(content: str) -> ComplianceResult:
 # ---------------------------------------------------------------------------
 
 class Generator:
-    """Very small deterministic generator so the example needs no LLM.
+    """Drafts one department's section.
 
-    It consumes the Part 1 synthesizer payload (key_aspects) through the
-    ticket — proving the handoff contract — and incorporates the evaluator's
-    feedback to fix failures (the loop).
+    If the optional LLM backend is enabled (RFP_USE_LLM=1 + LLM_API_KEY) it
+    asks the model; on any failure it transparently falls back to the
+    deterministic generator below. Otherwise (default) it is fully
+    deterministic — the teaching example still runs offline.
     """
 
     def __init__(self, department: str):
         self.department = department
+        self.last_source = "deterministic"   # "llm" when the model responded
 
     def draft(self, ticket: Ticket, iteration: int,
               feedback: str = "") -> str:
+        if llm_enabled():
+            user_prompt = self._build_prompt(ticket, iteration, feedback)
+            llm_text = call_llm(self.department, user_prompt)
+            if llm_text:
+                self.last_source = "llm"
+                return llm_text
+            self.last_source = "deterministic"   # LLM failed -> fallback
+        return self._deterministic_draft(ticket, iteration, feedback)
+
+    # -- deterministic fallback (keeps tests & offline demos unchanged) -------
+    def _deterministic_draft(self, ticket: Ticket, iteration: int,
+                             feedback: str) -> str:
         aspects = ticket.key_aspects_for(self.department)
         scope = (", ".join(aspects.aspects) if aspects else "general")
         base = (f"{self.department.capitalize()} section covers {scope} "
@@ -103,6 +118,21 @@ class Generator:
         if "readability" in feedback.lower():
             base += " Our plan is clear and easy to read."
         return base
+
+    def _build_prompt(self, ticket: Ticket, iteration: int, feedback: str) -> str:
+        aspects = ticket.key_aspects_for(self.department)
+        scope = (", ".join(aspects.aspects) if aspects else "general")
+        lines = [
+            f"Department: {self.department}",
+            f"Relevant aspects from the RFP for this section: {scope}",
+            ("Mirror those RFP aspects verbatim inside your opening sentence "
+             "(the automated reviewer checks that you mention them)."),
+            f"Iteration: {iteration} (max {MAX_ITERATIONS}).",
+        ]
+        if feedback:
+            lines.append(f"Feedback from the previous review that you MUST fix: {feedback}")
+        lines.append("Write only the proposal section now.")
+        return "\n".join(lines)
 
 
 def make_generators(departments: list[str]):
@@ -215,7 +245,8 @@ def evaluation_phase(ticket: Ticket, store: Store) -> None:
 
             _emit(ticket, f"rfp_pipeline.generator.{department}",
                   ActionType.DRAFT_WRITE.value, f"generator_{department}",
-                  f"iteration {iteration} drafted")
+                  f"iteration {iteration} drafted "
+                  f"(source={generators[department].last_source})")
             _emit(ticket, f"rfp_pipeline.evaluator.{department}",
                   ActionType.EVALUATE.value, f"evaluate_{department}",
                   f"overall_pass={evaluation.overall_pass}")

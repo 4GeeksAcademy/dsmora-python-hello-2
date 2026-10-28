@@ -21,10 +21,12 @@ Test: curl -N http://localhost:8000/events
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -126,6 +128,14 @@ class SseServer(BaseHTTPRequestHandler):
                 agent_id = query.get("agent_id", [None])[0]
                 flow_type = query.get("flow_type", [None])[0]
                 self._send_json(HUB.full_log(page, per_page, agent_id, flow_type))
+            elif path == "/api/tickets":
+                self._send_json({"tickets": _list_tickets()})
+            elif path.startswith("/api/tickets/"):
+                ticket_id = path.removeprefix("/api/tickets/").split("?")[0]
+                t = DEFAULT_STORE.load(ticket_id)
+                if t is None:
+                    return self._send_404(f"ticket {ticket_id!r} not found")
+                self._send_json({"ticket": t.to_dict()})
             elif path.startswith("/api/tasks/"):
                 task_id = path.removeprefix("/api/tasks/").split("?")[0]
                 chain = HUB.task_chain(task_id)
@@ -136,6 +146,107 @@ class SseServer(BaseHTTPRequestHandler):
                 self._send_404()
         except (ValueError, KeyError) as e:
             self._send_json({"error": f"bad request: {e}"}, status=400)
+
+    # -- POST dispatch ---------------------------------------------------------
+    def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        path, query = self._route()
+        if not self._require_auth():
+            return
+        try:
+            if path == "/api/upload":
+                self._handle_upload()
+            elif path.startswith("/api/tickets/"):
+                rest = path.removeprefix("/api/tickets/").split("?")[0]
+                if "/approve" in rest:
+                    ticket_id, dept = rest.split("/approve", 1)
+                    dept = dept.strip("/")
+                    self._handle_approve(ticket_id, dept)
+                else:
+                    self._send_404(f"unknown POST action for {path}")
+            else:
+                self._send_404()
+        except (ValueError, KeyError) as e:
+            self._send_json({"error": f"bad request: {e}"}, status=400)
+
+    # -- HITL: approve/reject a department's draft (Part 3) --------------------
+    def _handle_approve(self, ticket_id: str, department: str) -> None:
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+        except (ValueError, json.JSONDecodeError):
+            return self._send_json({"error": "invalid JSON body"}, status=400)
+        decision = str(body.get("decision", "")).strip()
+        comment = str(body.get("comment", "")).strip()
+        if decision not in ("approve", "reject", "request_changes"):
+            return self._send_json(
+                {"error": "decision must be approve|reject|request_changes"},
+                status=400)
+        from agentic_workflow_example.rfp_pipeline.part3_approval import (
+            _finalize, resume_approval)
+        ticket = DEFAULT_STORE.load(ticket_id)
+        if ticket is None:
+            return self._send_404(f"ticket {ticket_id!r} not found")
+        if department not in ticket.approvals:
+            return self._send_json(
+                {"error": f"no approval record for department {department!r}"},
+                status=400)
+        resume_approval(ticket, department, decision, comment)
+        DEFAULT_STORE.save(ticket)
+        if _all_approved(ticket):
+            _finalize(ticket, DEFAULT_STORE)
+        HUB.add_task(_task_record(
+            f"rfp_pipeline.human.{department}", "tool_call",
+            {"ticket_id": ticket_id, "node": "resume_approval",
+             "note": f"{decision} on {department} via dashboard"}))
+        detail = DEFAULT_STORE.load(ticket_id)
+        self._send_json({"ticket": detail.to_dict() if detail else None})
+
+    # -- upload: save the file and run Parts 1→3 (HITL pauses at approvals) ----
+    def _handle_upload(self) -> None:
+        content_type = self.headers.get("Content-Type", "")
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length)
+        filename = None
+        filedata = b""
+        if content_type.startswith("multipart/form-data"):
+            boundary = content_type.split("boundary=", 1)[-1].strip().strip('"')
+            marker = b"--" + boundary.encode("utf-8")
+            parts = raw.split(marker)
+            for part in parts:
+                if b'name="file"' in part:
+                    head, _, data = part.partition(b"\r\n\r\n")
+                    filedata = data.rsplit(b"\r\n", 1)[0]
+                    # Content-Disposition: form-data; name="file"; filename="x.pdf"
+                    hdr = head.decode("utf-8", "replace")
+                    if "filename=" in hdr:
+                        filename = hdr.split('filename="', 1)[-1].split('"', 1)[0]
+        else:
+            # raw body fallback
+            cd = self.headers.get("Content-Disposition", "")
+            if 'filename="' in cd:
+                filename = cd.split('filename="', 1)[-1].split('"', 1)[0]
+            filedata = raw
+        if not filename or not filedata:
+            return self._send_json(
+                {"error": "multipart field 'file' with a filename is required"},
+                status=400)
+        filename = os.path.basename(filename)  # no path traversal
+        raw_dir = Path("data/raw")
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        dest = raw_dir / f"upload_{int(time.time())}_{filename}"
+        dest.write_bytes(filedata)
+        print(f"[upload] saved {dest} ({len(filedata)} bytes)")
+        # run the pipeline in a background thread (never block the dashboard)
+        def _run():
+            try:
+                from run_rfp_e2e import run_one
+                run_one(str(dest), DEFAULT_STORE, RfpRunner(DEFAULT_STORE),
+                        auto_approve=False)
+            except Exception as e:  # noqa: BLE001
+                print(f"[upload] {dest} failed: {e}")
+        threading.Thread(target=_run, daemon=True).start()
+        self._send_json({"saved": str(dest), "filename": filename,
+                         "size": len(filedata), "status": "processing"})
 
     # -- SSE ------------------------------------------------------------------
     def _serve_sse(self, query: dict) -> None:
@@ -156,7 +267,13 @@ class SseServer(BaseHTTPRequestHandler):
 
     # -- root dashboard --------------------------------------------------------
     def _serve_index(self) -> None:
-        body = INDEX_HTML
+        # Serve the real dashboard file (kept out of the source so it is easy
+        # to edit). Falls back to the embedded INDEX_HTML if the file is gone.
+        dashboard = Path(__file__).resolve().parent / "dashboard.html"
+        if dashboard.exists():
+            body = dashboard.read_text(encoding="utf-8")
+        else:
+            body = INDEX_HTML
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body.encode("utf-8"))))
@@ -165,6 +282,41 @@ class SseServer(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args) -> None:  # quieter console
         pass
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers for the ticket / HITL API
+# ---------------------------------------------------------------------------
+
+def _all_approved(ticket) -> bool:
+    from agentic_workflow_example.rfp_pipeline.models import DeptApprovalStatus
+    return bool(ticket.approvals) and all(
+        r.status == DeptApprovalStatus.APPROVED.value for r in ticket.approvals.values())
+
+
+def _task_record(agent: str, action_type: str, payload: dict):
+    from agentic_workflow_example.rfp_pipeline.observability import TaskRecord, new_id
+    return TaskRecord(
+        task_id=f"task_{new_id()}", flow_id="rfp_workflow", flow_type="rfp_workflow",
+        agent_id=agent, action_type=action_type, payload=payload,
+        timestamp=time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+    )
+
+
+def _list_tickets() -> list[dict]:
+    out = []
+    # Store.list_ticket_ids() returns ids *without* the "ticket_" prefix
+    # (it strips it from the filename), but load() expects the full id.
+    for tid in DEFAULT_STORE.list_ticket_ids():
+        full_id = tid if tid.startswith("ticket_") else f"ticket_{tid}"
+        t = DEFAULT_STORE.load(full_id)
+        if not t:
+            continue
+        d = t.to_dict()
+        # light summary (avoid shipping the whole trace in the table)
+        d.pop("trace", None)
+        out.append(d)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +342,10 @@ def run_live_demo(stop: threading.Event) -> None:
         pdf_path = demo_dir / seed["filename"]
         write_seed(key, demo_dir)
         try:
-            run_one(str(pdf_path), DEFAULT_STORE, runner)
+            # "informal" stops at waiting_for_approval so a human can approve
+            # the departments from the dashboard (Part 3 HITL demo).
+            auto = key != "informal"
+            run_one(str(pdf_path), DEFAULT_STORE, runner, auto_approve=auto)
         except Exception as e:  # noqa: BLE001 - demo must not die
             print(f"[demo] {key} failed: {e}")
 

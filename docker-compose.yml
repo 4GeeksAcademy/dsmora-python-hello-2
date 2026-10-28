@@ -22,4 +22,6 @@ services:
       - ./data:/app/data:rw
     environment:
       PORT: "8000"
+    env_file:
+      - .env          # gitignored: LLM_API_KEY, LLM_API_URL, LLM_MODEL, RFP_USE_LLM (see .env.example)
     restart: unless-stopped

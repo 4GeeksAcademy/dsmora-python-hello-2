@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RFP Agent Observability — Dashboard</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:1.5rem;background:#0f172a;color:#e2e8f0}
+  h1{font-size:1.4rem;margin-bottom:.2rem}
+  h2{margin:0 0 .5rem;font-size:1rem;color:#7dd3fc}
+  .dim{color:#94a3b8;font-size:.85rem}
+  .row{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin:.6rem 0 1rem}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1rem;margin-bottom:1rem}
+  .card pre{background:#0f172a;padding:.6rem;border-radius:6px;overflow:auto;max-height:34vh;font-size:.78rem}
+  .card table{width:100%;border-collapse:collapse;font-size:.78rem}
+  .card td,.card th{padding:.3rem .4rem;border-bottom:1px solid #334155;text-align:left;vertical-align:top}
+  .pill{display:inline-block;padding:.1rem .45rem;border-radius:999px;font-size:.7rem}
+  .ok{background:#14532d;color:#86efac}.warn{background:#78350f;color:#fcd34d}
+  .idle{background:#334155;color:#e2e8f0}.err{background:#7f1d1d;color:#fca5a5}
+  button{background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:.4rem .8rem;cursor:pointer;margin-right:.3rem}
+  button.off{background:#64748b}button.green{background:#16a34a}button.red{background:#dc2626}
+  input[type=file],input[type=text]{background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:.4rem}
+  .ev{color:#86efac}.small{font-size:.72rem;color:#94a3b8}
+  .mode{font-weight:600;padding:.35rem .7rem;border-radius:8px}
+  .mode.rest{background:#1d4ed8;color:#fff}.mode.sse{background:#047857;color:#fff}
+  .dept{white-space:nowrap}
+</style>
+</head>
+<body>
+<h1>RFP Agent Observability</h1>
+<p class="dim" id="modebar">
+  Modo actual: <span class="mode rest" id="modeLabel">REST (con recarga manual)</span> —
+  <span id="statusText">cargando API…</span>
+</p>
+
+<div class="row">
+  <button id="refresh" title="Fetch manual a /api/*">🔄 Recargar ahora (REST)</button>
+  <button id="toggleSse" class="off" title="Abre /events con EventSource">📡 Conectar SSE (en vivo)</button>
+  <label class="dim">JWT: <input id="token" placeholder="vacío = demo abierta" size="26"></label>
+</div>
+
+<div class="row">
+  <label class="dim"><strong>Subir un RFP (md/txt/pdf):</strong>
+    <input type="file" id="fileInput" accept=".md,.txt,.pdf">
+  </label>
+  <button id="uploadBtn" class="green">Subir y procesar</button>
+  <span class="dim" id="uploadStatus"></span>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h2>Tickets (RFP) <span class="dim" id="ticketCount"></span></h2>
+    <table>
+      <thead><tr><th>id</th><th>estado</th><th>deps</th><th>aprobación</th></tr></thead>
+      <tbody id="tickets"><tr><td class="dim" colspan="4">—</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Detalle del ticket (HITL)</h2>
+    <pre id="ticketDetail" class="dim">Pulsa un ticket de la tabla para ver sus secciones y aprobar/rechazar cada departamento.</pre>
+  </div>
+
+  <div class="card">
+    <h2>Log de eventos (<code>/api/log</code>) <span class="dim" id="logCount"></span></h2>
+    <pre id="log" class="dim">esperando…</pre>
+  </div>
+
+  <div class="card">
+    <h2>Agentes</h2>
+    <table><thead><tr><th>id</th><th>status</th><th>flows</th></tr></thead>
+    <tbody id="agents"><tr><td class="dim" colspan="3">—</td></tr></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Flows</h2>
+    <table><thead><tr><th>flow</th><th>status</th><th>#tasks</th></tr></thead>
+    <tbody id="flows"><tr><td class="dim" colspan="3">—</td></tr></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Stream SSE en vivo <span class="dim" id="sseState">(off)</span></h2>
+    <pre id="sse" class="dim">Conecta el SSE y mira cómo llegan los eventos sin recargar la página.</pre>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const statusEl = $('statusText');
+let es = null;           // EventSource activo
+let liveOn = false;      // modo SSE: NO recarga REST automática
+let selectedTicket = null;
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pill(s){
+  const c = (s === 'done') ? 'ok'
+    : (['running','under_evaluation','waiting_for_approval','needs_human_review','analyzing','intake_complete','drafting'].includes(s) ? 'warn' : 'idle');
+  return `<span class="pill ${c}">${esc(s)}</span>`;
+}
+function authHeaders(){
+  const t = $('token').value.trim();
+  return t ? { 'Authorization': 'Bearer ' + t } : undefined;
+}
+async function jfetch(url, opts={}){
+  const h = authHeaders() || {};
+  opts.headers = Object.assign({}, h, opts.headers || {});
+  const r = await fetch(url, opts);
+  if (r.status === 401) throw new Error('401: token JWT inválido/ausente');
+  return r.json();
+}
+
+/* ======================================================================
+   PARTE 1 — REST con recarga MANUAL.
+   El dashboard se actualiza solo cuando pulsas "Recargar ahora".
+   Para ver la diferencia, abre el log del servidor: hay que pulsar el botón.
+   ====================================================================== */
+async function loadREST(){
+  try {
+    const [agentsR, flowsR, logR, ticketsR] = await Promise.all([
+      jfetch('/api/agents'), jfetch('/api/flows'),
+      jfetch('/api/log?per_page=20'), jfetch('/api/tickets') ]);
+    const agents = agentsR.agents || [], flows = flowsR.flows || [];
+    const log = logR.items || [], tickets = ticketsR.tickets || [];
+
+    $('agents').innerHTML = agents.map(a =>
+      `<tr><td>${esc(a.id)}</td><td>${pill(a.status)}</td><td>${(a.flows||[]).join(', ')}</td></tr>`).join('') || '<tr><td class="dim" colspan="3">—</td></tr>';
+    $('flows').innerHTML = flows.map(f =>
+      `<tr><td>${esc(f.id)}</td><td>${pill(f.status)}</td><td>${f.task_count ?? ''}</td></tr>`).join('') || '<tr><td class="dim" colspan="3">—</td></tr>';
+    $('log').textContent = log.map(e =>
+      `[${e.event_name}] ${e.agent_id} :: ${e.action_type} :: ${e.status}${e.payload && e.payload.note ? ' :: ' + e.payload.note : ''}`)
+      .join('\n') || '(sin eventos todavía)';
+    $('logCount').textContent = `(${log.length})`;
+    $('ticketCount').textContent = `(${tickets.length})`;
+    renderTickets(tickets);
+    statusEl.textContent = `OK — ${agents.length} agents · ${flows.length} flows · ${log.length} eventos · ${tickets.length} tickets (recarga manual)`;
+  } catch(err){ statusEl.textContent = 'ERROR: ' + err; }
+}
+
+/* ======================================================================
+   PARTE 2 — SSE en vivo: al activarlo se corta la recarga REST manual y
+   los datos se refrescan automáticamente con cada evento, sin recargar.
+   ====================================================================== */
+function toggleSse(){
+  if (es) {
+    es.close(); es = null; liveOn = false;
+    $('sseState').textContent = '(off)'; $('toggleSse').textContent = '📡 Conectar SSE (en vivo)';
+    $('toggleSse').className = 'off'; setMode('rest');
+    return;
+  }
+  const headers = authHeaders();
+  es = new EventSource('/events', headers ? { headers } : undefined);
+  $('sseState').textContent = '(conectado)'; $('toggleSse').textContent = 'Desconectar SSE';
+  $('toggleSse').className = ''; setMode('sse'); liveOn = true;
+  const sse = $('sse');
+  sse.textContent = 'Esperando eventos en vivo…\n';
+  // al recibir un evento -> refrescar TODOS los paneles SIN recarga manual
+  es.addEventListener('agent_step', e => { prependSse(e.data); loadREST(); });
+  es.addEventListener('agent_status_changed', e => { prependSse(e.data); loadREST(); });
+  es.onopen = () => { sse.textContent = '[SSE conectado — actualización automática]' + '\n' + sse.textContent; };
+  es.onerror = () => { sse.textContent = '[retrying…]' + '\n' + sse.textContent; };
+}
+function prependSse(data){
+  const sse = $('sse');
+  sse.textContent = data + '\n' + sse.textContent;
+  if (sse.textContent.length > 8000) sse.textContent = sse.textContent.slice(0, 8000);
+  sse.className = 'ev';
+}
+function setMode(m){
+  $('modeLabel').textContent = m === 'sse' ? 'SSE (en vivo, sin recarga)' : 'REST (con recarga manual)';
+  $('modeLabel').className = 'mode ' + (m === 'sse' ? 'sse' : 'rest');
+}
+
+/* ======================================================================
+   TICKETS + HITL (Part 3) — listar, ver detalle, aprobar/rechazar
+   ====================================================================== */
+function renderTickets(tickets){
+  $('tickets').innerHTML = tickets.map(t => {
+    const deps = (t.drafting_order || []).join(', ') || '—';
+    let aprob = '—';
+    if (t.approvals && Object.keys(t.approvals).length) {
+      aprob = Object.entries(t.approvals).map(([d, r]) =>
+        `<span class="pill ${r.status==='approved'?'ok':r.status==='rejected'?'err':r.status==='changes_requested'?'warn':'idle'}">${esc(d)}:${r.status}</span>`).join(' ');
+    }
+    return `<tr style="cursor:pointer" onclick="selectTicket('${esc(t.ticket_id)}')">
+      <td>${esc(t.ticket_id)}</td><td>${pill(t.status)}</td><td class="dept">${deps}</td><td>${aprob}</td></tr>`;
+  }).join('') || '<tr><td class="dim" colspan="4">(sin tickets)</td></tr>';
+}
+
+async function selectTicket(ticketId){
+  selectedTicket = ticketId;
+  try {
+    const d = await jfetch('/api/tickets/' + encodeURIComponent(ticketId));
+    const t = d.ticket;
+    let html = `<b>${esc(t.ticket_id)}</b> — ${pill(t.status)}<br>rfp: ${esc(t.rfp_id || '—')}<br>`;
+    if (t.metadata) html += `client: ${esc(t.metadata.client_hq || '—')}<br>`;
+    html += `<hr>`;
+    // secciones generadas (drafts) + evaluación
+    const deps = t.drafting_order || [];
+    if (!deps.length) { html += '<span class="dim">sin secciones</span>'; }
+    for (const dept of deps) {
+      const draft = t.drafts && t.drafts[dept];
+      const ev = t.evaluations && t.evaluations[dept];
+      const ap = t.approvals && t.approvals[dept];
+      html += `<div class="dept"><b>${esc(dept)}</b> `;
+      if (draft) html += `<span class="dim">(iter ${draft.iteration})</span>`;
+      if (ev) html += ` ${pill(ev.overall_pass ? 'pass' : 'fail')}${esc(ev.overall_pass ? '' : ' ' + (ev.feedback_for_generator||'').slice(0,80))}`;
+      html += `<br><pre class="small">${esc(draft ? draft.content : '(sin draft)')}</pre>`;
+      if (ap) {
+        const st = ap.status;
+        html += `<span class="dim">aprobación: ${esc(st)}${ap.comment ? ' — ' + esc(ap.comment) : ''}</span><br>`;
+        if (st === 'waiting_for_approval' || st === 'pending') {
+          html += `<button class="green" onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','approve')">✔ aprobar</button>
+                   <button class="red"   onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','reject')">✘ rechazar</button>
+                   <button onclick="decide('${esc(t.ticket_id)}','${esc(dept)}','request_changes')">↻ pedir cambios</button>`;
+        }
+      }
+      html += `<hr>`;
+    }
+    if (t.final_document) {
+      html += `<b>Final document:</b> ${esc(t.final_document.doc_id)} (${esc(t.final_document.currency)})`;
+    }
+    $('ticketDetail').innerHTML = html;
+  } catch(err){ $('ticketDetail').textContent = 'ERROR: ' + err; }
+}
+
+async function decide(ticketId, dept, decision){
+  try {
+    const r = await jfetch('/api/tickets/' + encodeURIComponent(ticketId) + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision })
+    });
+    statusEl.textContent = `✔ ${dept} → ${decision} (ticket ${ticketId})`;
+    await selectTicket(ticketId);   // refrescar detalle
+    loadREST();                     // refrescar tabla
+  } catch(err){ statusEl.textContent = 'ERROR: ' + err; }
+}
+
+/* ======================================================================
+   SUBIR UN RFP (md/txt/pdf) — POST /api/upload
+   ====================================================================== */
+$('uploadBtn').onclick = async () => {
+  const f = $('fileInput').files[0];
+  if (!f) { $('uploadStatus').textContent = 'elige un archivo primero'; return; }
+  const fd = new FormData();
+  fd.append('file', f);
+  $('uploadStatus').textContent = `subiendo ${f.name}…`;
+  try {
+    const h = authHeaders() || {};
+    const r = await fetch('/api/upload', { method: 'POST', headers: h, body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    $('uploadStatus').textContent = `✔ ${j.filename} procesándose en background (${j.size} bytes). Verás el ticket en la tabla.`;
+    setTimeout(() => { $('uploadStatus').textContent = ''; }, 8000);
+    loadREST();
+  } catch(err){ $('uploadStatus').textContent = 'ERROR: ' + err; }
+};
+
+$('refresh').onclick = () => { if (!liveOn) loadREST(); };
+$('toggleSse').onclick = toggleSse;
+$('token').onchange = () => { if (es) { es.close(); es = null; toggleSse(); } };
+
+/* arranque: PARTE 1 (REST manual). NO hay setInterval — el profesor
+   recarga pulsando el botón. Al conectar SSE, la recarga pasa a ser automática. */
+loadREST();
+window.selectTicket = selectTicket;
+window.decide = decide;
+</script>
+</body>
+</html>
