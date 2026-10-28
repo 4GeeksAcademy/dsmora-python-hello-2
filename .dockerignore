@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.md
+!README.md
+learn.json
+node_modules
+frontend
+data
+examples
+scripts

@@ -1,0 +1,30 @@
+[project]
+name = "dsmora-python-hello-2"
+version = "0.1.0"
+description = "Agentic RFP Workflow teaching example (orchestrate / evaluate / produce / observability) + 4Geeks Python starter base."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Intentionally empty: the teaching example uses only the Python standard
+    # library (json, dataclasses, enum, threading, unittest, http.server) so it
+    # runs anywhere — including inside the Docker image — with zero pip installs.
+]
+
+[project.scripts]
+rfp-e2e = "run_rfp_e2e:main"
+observability-server = "services.observability_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agentic_workflow_example"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"run_rfp_e2e.py" = "run_rfp_e2e.py"
+"services" = "services"
+
+[tool.pytest.ini_options]
+# Tests use unittest (stdlib); pytest is optional but honours `uv run pytest`.
+testpaths = ["tests"]

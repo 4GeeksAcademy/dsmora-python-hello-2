@@ -1,0 +1,1 @@
+# Pipeline-level tests mirroring the `data/pipelines/` stages.

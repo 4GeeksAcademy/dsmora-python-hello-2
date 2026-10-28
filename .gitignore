@@ -1,6 +1,25 @@
-.env
-
+# Python
 __pycache__/
 *.pyc
 
+# Virtualenvs / uv
 .venv/
+
+# Frontend (starter template leftover)
+node_modules/
+frontend/
+
+# Build output
+.tanstack/
+.output/
+
+# Secrets
+.env
+
+# Generated runtime data (kept on disk, not in git); layout kept via .gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/state/*
+!data/state/.gitkeep
+data/documents/*
+!data/documents/.gitkeep

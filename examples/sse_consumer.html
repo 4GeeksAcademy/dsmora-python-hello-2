@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SSE consumer — fetch + ReadableStream (JWT)</title>
+  <style>
+    body{font-family:system-ui,sans-serif;margin:2rem;background:#0f172a;color:#e2e8f0}
+    pre{background:#1e293b;padding:1rem;border-radius:8px;overflow:auto;min-height:40vh}
+    input{width:22rem;padding:.35rem}
+  </style>
+</head>
+<body>
+  <h1>SSE consumer — <code>fetch</code> + <code>ReadableStream</code> con JWT</h1>
+  <p>Este es el patrón que el frontend del curso usa (a diferencia de
+     <code>EventSource</code>, permite mandar cabeceras <code>Authorization</code>).</p>
+  <label>Token JWT: <input id="token" placeholder="eyJhbGciOi…" size="60"></label>
+  <button id="go">Conectar a /events</button>
+  <button id="stop">Desconectar</button>
+  <pre id="out">—</pre>
+
+  <script>
+    let controller = null;
+    const out = document.getElementById('out');
+    const log = s => { out.textContent = s + '\n' + out.textContent; };
+
+    document.getElementById('go').onclick = async () => {
+      const token = document.getElementById('token').value.trim();
+      controller = new AbortController();
+      try {
+        const res = await fetch('/events', {
+          headers: { 'Authorization': `Bearer ${token}` },  // cabecera JWT
+          signal: controller.signal
+        });
+        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let idx;
+          while ((idx = buf.indexOf('\n\n')) !== -1) {          // separador SSE
+            const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+            const dataLine = frame.split('\n').find(l => l.startsWith('data:'));
+            if (dataLine) log(dataLine.slice(6));
+          }
+        }
+      } catch (e) { if (e.name !== 'AbortError') log('ERROR: ' + e); }
+    };
+
+    document.getElementById('stop').onclick = () => {
+      if (controller) { controller.abort(); log('[desconectado]'); }
+    };
+  </script>
+</body>
+</html>

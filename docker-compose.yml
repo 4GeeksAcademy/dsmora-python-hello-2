@@ -1,0 +1,25 @@
+# Agentic RFP Workflow — Docker Compose (uv-based).
+#
+# Usage:
+#   docker compose build
+#   docker compose up
+#   open http://localhost:8000            (SSE dashboard)
+#   curl -N http://localhost:8000/events  (SSE stream)
+#
+# `data/` is bind-mounted so tickets/documents generated inside the container
+# are inspectable on the host (same layout the monorepo uses).
+services:
+  observability:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dsmora-rfp-example:uv
+    container_name: rfp-observability
+    command: ["uv", "run", "observability-server"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:rw
+    environment:
+      PORT: "8000"
+    restart: unless-stopped

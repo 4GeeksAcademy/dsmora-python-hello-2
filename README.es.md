@@ -1,22 +1,24 @@
-# Python Hello
+# Agentic RFP Workflow — ejemplo de clase (rama `agentic-workflow`)
 
-El boilerplate más básico para comenzar un proyecto en Python en 4Geeks. Inicia tu primer proyecto en Python desde cero.
+> Esta rama implementa un **ejemplo docente** que mapea los 3 proyectos del
+> temario (**orchestrate → evaluate → produce**) más el proyecto de
+> **observability** (SSE en tiempo real) en un flujo RFP → documento final,
+> con **solo la librería estándar de Python** y gestionado con **uv**.
 
-## ¿Qué hacer a continuación?
-
-Abre el archivo `main.py` y comienza a escribir tu código.
-
-Ejecuta tu código escribiendo el siguiente comando en tu terminal:
+Todo (instalación con `uv`, tests, E2E, servidor SSE y Docker) está explicado
+en **`README.md`** (en inglés). Los comandos esenciales:
 
 ```bash
-$ python main.py
+uv sync
+uv run python -m unittest discover -s tests -p 'test_*.py'   # 29 tests
+uv run rfp-e2e                                               # E2E 3 seeds
+uv run observability-server                                  # dashboard + SSE en :8000
+docker compose up -d                                         # todo con docker
 ```
 
-Puedes crear e incluir tantos archivos de Python (también conocidos como módulos) como desees utilizando las declaraciones de importación.
-
-## Requisitos
-
-Asegúrate de tener Python instalado en tu computadora. Te recomendamos encarecidamente [instalar Python a través de Pyenv](https://4geeks.com/es/how-to/que-es-pyenv-y-como-instalar-pyenv) para evitar conflictos de versiones en el futuro.
+El base `main.py` del starter 4Geeks se conserva tal cual; esta rama añade
+`agentic_workflow_example/`, `services/`, `tests/`, `run_rfp_e2e.py` y la
+configuración de `uv` (`pyproject.toml` + `uv.lock`) + Docker.
 
 ### Contribuidores
 
