@@ -13,6 +13,7 @@ Endpoints
 * ``GET  /api/flows/{id}``    -> flow detail (participating agents + tasks in order)
 * ``GET  /api/log``           -> paginated event log (?page=&per_page=&agent_id=&flow_type=)
 * ``GET  /api/tasks/{id}``    -> full traceability chain (trigger/derived/prev/next)
+* ``GET  /api/sample-pdf``    -> descarga un PDF de ejemplo para probar el upload
 * ``GET  /events``            -> SSE stream: agent_step / agent_status_changed
 
 Run:  python3 services/observability_server.py    (no dependencies, works in Docker)
@@ -142,6 +143,8 @@ class SseServer(BaseHTTPRequestHandler):
                 if chain is None:
                     return self._send_404(f"task {task_id!r} not found")
                 self._send_json({"task": chain})
+            elif path == "/api/sample-pdf":
+                self._serve_sample_pdf()
             else:
                 self._send_404()
         except (ValueError, KeyError) as e:
@@ -279,6 +282,16 @@ class SseServer(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body.encode("utf-8"))))
         self.end_headers()
         self.wfile.write(body.encode("utf-8"))
+
+    def _serve_sample_pdf(self) -> None:
+        pdf_bytes = _build_sample_pdf()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf; charset=binary")
+        self.send_header("Content-Disposition",
+                         'attachment; filename="sample-rfp.pdf"')
+        self.send_header("Content-Length", str(len(pdf_bytes)))
+        self.end_headers()
+        self.wfile.write(pdf_bytes)
 
     def log_message(self, fmt: str, *args) -> None:  # quieter console
         pass
@@ -470,6 +483,119 @@ loadAll();
 setInterval(loadAll, 2000);
 </script></body></html>
 """
+
+
+# ---------------------------------------------------------------------------
+# Sample PDF generator (zero dependencies, creates a valid PDF with text)
+# ---------------------------------------------------------------------------
+def _build_sample_pdf() -> bytes:
+    """Return a valid PDF with embedded RFP text, ready for download.
+
+    Uses a robust approach: writes the PDF body pieces separately, then
+    builds a correct xref table so that pdfminer (used by markitdown) can
+    parse it.
+    """
+    lines = [
+        "# Community Arts Initiative - Grant Application 2026",
+        "",
+        "**Applicant:** Downtown Arts Collective",
+        "**Date:** 2026-12-01",
+        "**Requested amount:** $8,500",
+        "",
+        "## Programming",
+        "",
+        "Weekly art workshops for teens (ages 13-17), Saturday exhibitions.",
+        "Expected participation: 25 teens per session.",
+        "",
+        "## Facilities",
+        "",
+        "Need Gallery Space A for workshops and exhibitions.",
+        "Requires easels, sinks, and secure storage.",
+        "Access needed on weekends and evenings.",
+        "",
+        "## Budget",
+        "",
+        "50% upfront for supplies, 50% upon program completion.",
+        "Non-profit status verified (501(c)(3) attached).",
+        "Budget includes instructor stipends, materials, and insurance.",
+        "",
+        "GRANT APPLICATION",
+    ]
+
+    def esc(s: str) -> str:
+        return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+    # Build the content stream
+    stream_lines_out = ["BT"]
+    y = 740
+    for line in lines:
+        text = line.lstrip("#*").strip()
+        if not text:
+            y -= 14
+            continue
+        stream_lines_out.append(f"/F1 11 Tf\n50 {y} Td ({esc(text)}) Tj")
+        y -= 16
+    stream_lines_out.append("ET")
+    stream_body = "\n".join(stream_lines_out)
+    stream_body_bytes = stream_body.encode("latin-1")
+
+    # Build PDF objects
+    objects = []
+    # Object 1: Catalog
+    objects.append(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj")
+    # Object 2: Pages
+    objects.append(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj")
+    # Object 3: Page
+    objects.append(
+        b"3 0 obj\n"
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]\n"
+        b"   /Contents 4 0 R\n"
+        b"   /Resources << /Font << /F1 5 0 R >> >> >>\n"
+        b"endobj"
+    )
+    # Object 4: Content stream
+    obj4 = (
+        b"4 0 obj\n"
+        b"<< /Length " + str(len(stream_body_bytes)).encode() + b" >>\n"
+        b"stream\n" + stream_body_bytes + b"\nendstream\nendobj"
+    )
+    objects.append(obj4)
+    # Object 5: Font
+    objects.append(
+        b"5 0 obj\n"
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\n"
+        b"endobj"
+    )
+
+    # Header
+    header = b"%PDF-1.4\n%\xFF\xFF\xFF\xFF\n"
+
+    # Build full body and compute offsets
+    body_parts = [header]
+    offsets = [0]  # offset 0 is free (object 0)
+    for i, obj in enumerate(objects):
+        offsets.append(len(b"".join(body_parts)))
+        body_parts.append(obj + b"\n")
+
+    body = b"".join(body_parts)
+    xref_offset = len(body)
+
+    # xref table
+    xref_lines = [b"xref", b"0 6"]
+    xref_lines.append(b"0000000000 65535 f \r")
+    for off in offsets[1:]:
+        xref_lines.append(f"{off:010d} 00000 n \r".encode())
+    xref = b"\n".join(xref_lines)
+
+    trailer = (
+        b"\ntrailer\n"
+        b"<< /Size 6 /Root 1 0 R >>\n"
+        b"startxref\n"
+        + str(xref_offset).encode() + b"\n"
+        b"%%EOF"
+    )
+
+    return body + xref + trailer
 
 
 def main(serve: bool = True) -> int:
