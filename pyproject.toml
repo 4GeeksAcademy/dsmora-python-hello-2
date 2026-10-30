@@ -5,9 +5,10 @@ description = "Agentic RFP Workflow teaching example (orchestrate / evaluate / p
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    # Intentionally empty: the teaching example uses only the Python standard
-    # library (json, dataclasses, enum, threading, unittest, http.server) so it
-    # runs anywhere — including inside the Docker image — with zero pip installs.
+    # markitdown with the [pdf] extra (pdfminer-six + pdfplumber) so real PDF
+    # documents can be ingested and converted to Markdown for the pipeline.
+    # Without it the converter falls back to .md/.txt seeds only.
+    "markitdown[pdf]>=0.1.9",
 ]
 
 [project.scripts]
