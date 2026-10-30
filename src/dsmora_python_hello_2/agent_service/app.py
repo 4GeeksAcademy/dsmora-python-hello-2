@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import secrets
 import sqlite3
 import threading
@@ -13,7 +14,7 @@ from typing import Annotated, Any
 import jwt
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
@@ -108,6 +109,17 @@ def owned(job_id: str, claims: dict[str, Any]) -> dict[str, str]:
 
 def update(job_id: str, **values) -> None:
     database().hset(f"job:{job_id}", mapping=values)
+
+
+def events_key(job_id: str) -> str:
+    return f"events:{job_id}"
+
+
+def publish_token(job_id: str, message_id: str, text: str) -> None:
+    pipe = database().pipeline()
+    pipe.xadd(events_key(job_id), {"id": message_id, "text": text}, maxlen=20000, approximate=True)
+    pipe.expire(events_key(job_id), settings.history_ttl)
+    pipe.execute()
 
 
 class JobContext:
@@ -258,6 +270,7 @@ def execute(
                 checkpointer=app.state.checkpointer,
                 register_prepared=register_prepared,
                 save_candidate=context.save_candidate if session["authenticated"] else None,
+                on_token=lambda message_id, text: publish_token(context.job_id, message_id, text),
             )
             conversation_id = chat.conversation_id if chat else "tools"
             if chat is not None:
@@ -499,6 +512,46 @@ def status(job_id: str, claims: Auth):
     }
 
 
+def sse(event: str, data: Any, event_id: str | None = None) -> str:
+    head = f"id: {event_id}\n" if event_id else ""
+    return f"{head}event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@app.get("/jobs/{job_id}/events")
+def job_events(job_id: str, request: Request, claims: Auth):
+    """SSE: eventos `token` (texto parcial del agente) y `status` (estado del trabajo)."""
+    owned(job_id, claims)
+    last_event_id = request.headers.get("last-event-id", "")
+    cursor = last_event_id if re.fullmatch(r"\d+-\d+", last_event_id) else "0"
+
+    def stream():
+        nonlocal cursor
+        previous = None
+        keepalive = time.monotonic()
+        while True:
+            entries = database().xread({events_key(job_id): cursor}, count=500, block=500)
+            for _, items in entries or []:
+                for entry_id, fields in items:
+                    cursor = entry_id
+                    yield sse("token", fields, entry_id)
+            current = status(job_id, claims)
+            if current != previous:
+                previous = current
+                keepalive = time.monotonic()
+                yield sse("status", current)
+            if current["status"] != "running":
+                return
+            if time.monotonic() - keepalive > 15:
+                keepalive = time.monotonic()
+                yield ": keepalive\n\n"
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.post("/jobs/{job_id}/confirm")
 def confirm(job_id: str, body: Confirmation, claims: Auth):
     job = owned(job_id, claims)
@@ -572,6 +625,7 @@ def resume_job(job_id: str, request: Request, claims: Auth):
         slots.release()
         app.state.approvals.release_resume(job_id)
         raise HTTPException(409, "Ya hay una solicitud activa en esta conversacion.")
+    database().delete(events_key(job_id))
     update(
         job_id,
         sid=claims["sid"],

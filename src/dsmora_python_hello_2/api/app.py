@@ -7,7 +7,7 @@ import httpx
 import jwt
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..security import SCOPES, active_session, database, issue, jwks, new_session, rate_limit, verify
@@ -189,11 +189,16 @@ class PlanApproval(BaseModel):
     action: Literal["approve", "deny"]
 
 
-def agent_request(method: str, path: str, auth: tuple[str, dict[str, Any]], body=None):
+def agent_headers(auth: tuple[str, dict[str, Any]]) -> dict[str, str]:
     sid, session = auth
     headers = {"Authorization": f"Bearer {issue(session['sub'], sid, 'agent')}"}
     if session["authenticated"]:
         headers["X-MCP-Token"] = issue(session["sub"], sid, "mcp", SCOPES)
+    return headers
+
+
+def agent_request(method: str, path: str, auth: tuple[str, dict[str, Any]], body=None):
+    headers = agent_headers(auth)
     try:
         with httpx.Client(timeout=15, trust_env=False) as client:
             result = client.request(
@@ -234,6 +239,47 @@ def job(job_id: str, response: Response, auth: Identity):
     if not job_id.isalnum() or len(job_id) != 32:
         raise HTTPException(404, "Trabajo no encontrado.")
     return agent_request("GET", f"/jobs/{job_id}", auth)
+
+
+@app.get("/api/jobs/{job_id}/events")
+async def job_events(job_id: str, request: Request, auth: Identity):
+    if not job_id.isalnum() or len(job_id) != 32:
+        raise HTTPException(404, "Trabajo no encontrado.")
+    headers = agent_headers(auth)
+    last_event_id = request.headers.get("last-event-id")
+    if last_event_id:
+        headers["Last-Event-ID"] = last_event_id[:64]
+    client = httpx.AsyncClient(timeout=httpx.Timeout(10, read=60), trust_env=False)
+    try:
+        upstream = await client.send(
+            client.build_request("GET", f"{settings.agent_url}/jobs/{job_id}/events", headers=headers),
+            stream=True,
+        )
+    except httpx.HTTPError as error:
+        await client.aclose()
+        logger.error("Agente no disponible: %s", type(error).__name__)
+        raise HTTPException(503, "El agente no esta disponible.") from error
+    if upstream.is_error:
+        await upstream.aread()
+        await upstream.aclose()
+        await client.aclose()
+        if upstream.status_code in {401, 403, 404}:
+            raise HTTPException(upstream.status_code, upstream.json().get("detail", "Solicitud rechazada."))
+        raise HTTPException(502, "No se pudo completar la solicitud al agente.")
+
+    async def relay():
+        try:
+            async for chunk in upstream.aiter_raw():
+                yield chunk
+        except httpx.HTTPError as error:
+            logger.error("Stream del agente interrumpido: %s", type(error).__name__)
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        relay(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"}
+    )
 
 
 @app.post("/api/jobs/{job_id}/confirm")

@@ -16,6 +16,7 @@ from .model import Message, Model
 from .subagents import SubAgent, SubAgentResult, SubAgentTask
 
 MAX_ROUTES = 4
+USER_FACING_SUBAGENT_NODES = {"llm", "optimize"}
 PLAN_CONSISTENCY_PROMPT = (
     "Valida un candidato a plan de viaje. Devuelve exclusivamente JSON con "
     '{"valid": boolean, "violations": [string]}. Valida que sea una propuesta concreta para Mexico, '
@@ -86,6 +87,7 @@ class Orchestrator:
         checkpointer: Any = None,
         register_prepared: Callable[[dict[str, Any]], None] | None = None,
         save_candidate: Callable[[dict[str, Any]], Any] | None = None,
+        on_token: Callable[[str, str], None] | None = None,
     ) -> None:
         self.model = model
         self.memory = memory
@@ -97,6 +99,7 @@ class Orchestrator:
         self.checkpointer = checkpointer
         self.register_prepared = register_prepared
         self.save_candidate = save_candidate
+        self.on_token = on_token
         self.history: list[Message] = []
         self.graph = self._build_graph()
 
@@ -111,7 +114,7 @@ class Orchestrator:
     ) -> str | dict[str, Any]:
         if initial_candidate is not None and self.checkpointer is None:
             raise RuntimeError("El guardado requiere un checkpoint durable.")
-        state = self.graph.invoke(
+        state = self._stream(
             {
                 "messages": [*self.history, Message(role="user", content=user_input)],
                 "sanitized_input": None,
@@ -154,10 +157,33 @@ class Orchestrator:
         if not snapshot.next:
             return self._finish_run(snapshot.values)
         interrupted = any(task.interrupts for task in snapshot.tasks)
-        state = self.graph.invoke(Command(resume=decision) if interrupted else None, config)
+        state = self._stream(Command(resume=decision) if interrupted else None, config)
         if state.get("error"):
             return {"status": "failed", "error": state["error"]}
         return self._finish_run(state)
+
+    def _stream(self, payload: Any, config: dict[str, Any] | None) -> OrchestratorState:
+        """Ejecuta el grafo con graph.stream y reenvia token a token la respuesta visible al usuario."""
+        state: Any = None
+        single_task = False
+        for namespace, mode, data in self.graph.stream(
+            payload, config, stream_mode=["messages", "values"], subgraphs=True
+        ):
+            if mode == "values":
+                if not namespace:
+                    state = data
+                    single_task = len(data.get("tasks") or []) == 1
+                continue
+            chunk, metadata = data
+            node = metadata.get("langgraph_node")
+            # Con un solo subagente su borrador es la respuesta; con varios, solo la agregacion.
+            visible = node == "aggregate" or (
+                bool(namespace) and single_task and node in USER_FACING_SUBAGENT_NODES
+            )
+            text = chunk.content if isinstance(chunk.content, str) else ""
+            if visible and text and self.on_token is not None:
+                self.on_token(chunk.id or "", text)
+        return state
 
     def _finish_run(self, state: OrchestratorState) -> str | dict[str, Any]:
         reply = state["messages"][-1]

@@ -28,6 +28,7 @@ def build_orchestrator(
     checkpointer: Any = None,
     register_prepared: Callable[[dict[str, Any]], None] | None = None,
     save_candidate: Callable[[dict[str, Any], dict[str, Any]], Any] | None = None,
+    on_token: Callable[[str, str], None] | None = None,
 ) -> Orchestrator:
     subagents = [build_planner_agent(model)]
     if invoke is not None:
@@ -80,6 +81,7 @@ def build_orchestrator(
         checkpointer=checkpointer,
         register_prepared=register_prepared,
         save_candidate=save_candidate,
+        on_token=on_token,
         capability_notice=(
             "Puedes planificar y usar clima y planes guardados; las herramientas requieren confirmacion."
             if invoke is not None else

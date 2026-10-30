@@ -1,0 +1,359 @@
+{
+  "ticket_id": "ticket_0308766d",
+  "rfp_id": "seed-grant-riverside",
+  "status": "waiting_for_approval",
+  "raw_pdf_path": "data/raw/seed-grant-riverside.md",
+  "md_path": "data/documents/seed-grant-riverside.md",
+  "metadata": {
+    "client_name": "Riverside Community Association",
+    "client_hq": "",
+    "services_requested": [
+      "grant request"
+    ],
+    "scope": "# Neighborhood Reading Circle — Grant Application 2026  Applicant: Riverside Community Association Date: 2026-11-15 Requested amount: $12,400  ## Programs Weekl",
+    "deadline": "2026-11-15",
+    "budget_range": "$12,400",
+    "departments_needed": [
+      "programs",
+      "facilities",
+      "finance"
+    ],
+    "extracted_at": "2026-10-30T12:56:04"
+  },
+  "readability": {
+    "flesch_reading_ease": 13.9,
+    "flesch_kincaid_grade": 13.0,
+    "gunning_fog": 0.0,
+    "word_count": 60
+  },
+  "classifier": {
+    "is_rfp": true,
+    "confidence": 0.55,
+    "reason": "Grant application marker found and key grant fields present",
+    "handoff": {
+      "routing_table": [
+        {
+          "department": "programs",
+          "key_aspects": [
+            "general requirements for programs"
+          ],
+          "contact_hint": "A. Rivera (Programs)",
+          "present": true
+        },
+        {
+          "department": "facilities",
+          "key_aspects": [
+            "general requirements for facilities"
+          ],
+          "contact_hint": "M. Chen (Facilities)",
+          "present": true
+        },
+        {
+          "department": "finance",
+          "key_aspects": [
+            "general requirements for finance"
+          ],
+          "contact_hint": "D. Okafor (Finance)",
+          "present": true
+        }
+      ],
+      "summary": "3 departments need input; 0 not mentioned."
+    }
+  },
+  "work_items": [
+    {
+      "department": "programs",
+      "sections": [
+        "programming",
+        "audience",
+        "schedule",
+        "outcomes"
+      ],
+      "relevant_extract": "## Programs"
+    },
+    {
+      "department": "facilities",
+      "sections": [
+        "space",
+        "access",
+        "hours",
+        "safety"
+      ],
+      "relevant_extract": "## Facilities"
+    },
+    {
+      "department": "finance",
+      "sections": [
+        "budget",
+        "matching",
+        "milestones",
+        "compliance"
+      ],
+      "relevant_extract": "## Finance"
+    }
+  ],
+  "key_aspects": [
+    {
+      "department": "programs",
+      "aspects": [
+        "general requirements for programs"
+      ],
+      "contact_hint": "A. Rivera (Programs)",
+      "source_sections": [
+        "programming",
+        "audience",
+        "schedule",
+        "outcomes"
+      ],
+      "present": true
+    },
+    {
+      "department": "facilities",
+      "aspects": [
+        "general requirements for facilities"
+      ],
+      "contact_hint": "M. Chen (Facilities)",
+      "source_sections": [
+        "space",
+        "access",
+        "hours",
+        "safety"
+      ],
+      "present": true
+    },
+    {
+      "department": "finance",
+      "aspects": [
+        "general requirements for finance"
+      ],
+      "contact_hint": "D. Okafor (Finance)",
+      "source_sections": [
+        "budget",
+        "matching",
+        "milestones",
+        "compliance"
+      ],
+      "present": true
+    }
+  ],
+  "drafting_order": [
+    "programs",
+    "facilities",
+    "finance"
+  ],
+  "drafts": {
+    "programs": {
+      "department": "programs",
+      "content": "Our programs will meet the general requirements for programs. We guarantee program support for 90 days and respond within 24 hours to the client’s questions. The proposed budget is $12,400.",
+      "iteration": 1,
+      "last_feedback": "",
+      "last_evaluation": {
+        "section_id": "sec_programs",
+        "department": "programs",
+        "readability": {
+          "score": 61.4,
+          "details": "Flesch reading ease 61.4",
+          "pass": true
+        },
+        "relevance": {
+          "missing_aspects": [],
+          "pass": true
+        },
+        "compliance": {
+          "rule_ids": [
+            "G1",
+            "G2",
+            "G3",
+            "G4"
+          ],
+          "violations": [],
+          "pass": true
+        },
+        "overall_pass": true,
+        "feedback_for_generator": ""
+      },
+      "approved": false
+    },
+    "facilities": {
+      "department": "facilities",
+      "content": "We will meet the general requirements for facilities and support the client’s site needs. We guarantee service coverage for 90 days and respond within 24 hours to facility issues. Our proposed facilities budget is $12,400.",
+      "iteration": 3,
+      "last_feedback": "Iteration limit reached; awaiting human review.",
+      "last_evaluation": {
+        "section_id": "sec_facilities",
+        "department": "facilities",
+        "readability": {
+          "score": 36.7,
+          "details": "Flesch reading ease 36.7",
+          "pass": false
+        },
+        "relevance": {
+          "missing_aspects": [],
+          "pass": true
+        },
+        "compliance": {
+          "rule_ids": [
+            "G1",
+            "G2",
+            "G3",
+            "G4"
+          ],
+          "violations": [],
+          "pass": true
+        },
+        "overall_pass": false,
+        "feedback_for_generator": "Improve readability (shorter sentences, simpler words)."
+      },
+      "approved": false
+    },
+    "finance": {
+      "department": "finance",
+      "content": "We address the general requirements for finance with clear budgeting and reporting. The proposed budget is $12,400. We guarantee financial tracking for 90 days. We will respond within 24 hours to finance questions from the client.",
+      "iteration": 3,
+      "last_feedback": "Iteration limit reached; awaiting human review.",
+      "last_evaluation": {
+        "section_id": "sec_finance",
+        "department": "finance",
+        "readability": {
+          "score": 49.8,
+          "details": "Flesch reading ease 49.8",
+          "pass": false
+        },
+        "relevance": {
+          "missing_aspects": [],
+          "pass": true
+        },
+        "compliance": {
+          "rule_ids": [
+            "G1",
+            "G2",
+            "G3",
+            "G4"
+          ],
+          "violations": [],
+          "pass": true
+        },
+        "overall_pass": false,
+        "feedback_for_generator": "Improve readability (shorter sentences, simpler words)."
+      },
+      "approved": false
+    }
+  },
+  "evaluations": {
+    "programs": {
+      "section_id": "sec_programs",
+      "department": "programs",
+      "readability": {
+        "score": 61.4,
+        "details": "Flesch reading ease 61.4",
+        "pass": true
+      },
+      "relevance": {
+        "missing_aspects": [],
+        "pass": true
+      },
+      "compliance": {
+        "rule_ids": [
+          "G1",
+          "G2",
+          "G3",
+          "G4"
+        ],
+        "violations": [],
+        "pass": true
+      },
+      "overall_pass": true,
+      "feedback_for_generator": ""
+    },
+    "facilities": {
+      "section_id": "sec_facilities",
+      "department": "facilities",
+      "readability": {
+        "score": 36.7,
+        "details": "Flesch reading ease 36.7",
+        "pass": false
+      },
+      "relevance": {
+        "missing_aspects": [],
+        "pass": true
+      },
+      "compliance": {
+        "rule_ids": [
+          "G1",
+          "G2",
+          "G3",
+          "G4"
+        ],
+        "violations": [],
+        "pass": true
+      },
+      "overall_pass": false,
+      "feedback_for_generator": "Improve readability (shorter sentences, simpler words)."
+    },
+    "finance": {
+      "section_id": "sec_finance",
+      "department": "finance",
+      "readability": {
+        "score": 49.8,
+        "details": "Flesch reading ease 49.8",
+        "pass": false
+      },
+      "relevance": {
+        "missing_aspects": [],
+        "pass": true
+      },
+      "compliance": {
+        "rule_ids": [
+          "G1",
+          "G2",
+          "G3",
+          "G4"
+        ],
+        "violations": [],
+        "pass": true
+      },
+      "overall_pass": false,
+      "feedback_for_generator": "Improve readability (shorter sentences, simpler words)."
+    }
+  },
+  "approvals": {
+    "programs": {
+      "department": "programs",
+      "status": "waiting_for_approval",
+      "approver": "A. Rivera",
+      "decided_at": "",
+      "comment": ""
+    },
+    "facilities": {
+      "department": "facilities",
+      "status": "waiting_for_approval",
+      "approver": "M. Chen",
+      "decided_at": "",
+      "comment": ""
+    },
+    "finance": {
+      "department": "finance",
+      "status": "waiting_for_approval",
+      "approver": "D. Okafor",
+      "decided_at": "",
+      "comment": ""
+    }
+  },
+  "arbitrations": [],
+  "final_document": null,
+  "trace": [
+    {
+      "agent": "rfp_pipeline.approval",
+      "action_type": "tool_call",
+      "node": "approval_phase",
+      "ticket_id": "ticket_0308766d",
+      "department": "",
+      "input_snapshot": null,
+      "output_snapshot": "HITL: per-department approvals opened",
+      "timestamp": "2026-10-30T12:56:42"
+    }
+  ],
+  "submitter": "E2E runner",
+  "created_at": "2026-10-30T12:56:04",
+  "updated_at": "2026-10-30T12:56:42"
+}

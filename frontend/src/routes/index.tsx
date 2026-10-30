@@ -15,6 +15,7 @@ function Agent() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [draft, setDraft] = useState<{ id: string; text: string }>()
   const conversation = useRef('')
   const bottom = useRef<HTMLDivElement>(null)
   const busy = Boolean(jobId) || submitting
@@ -27,50 +28,63 @@ function Agent() {
       if (savedJobId) setJobId(savedJobId)
     }).catch(error => setError(errorMessage(error)))
   }, [])
-  useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, job?.pending])
+  useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, job?.pending, draft?.text])
 
-  useEffect(() => {
-    if (!jobId) return
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout>
-    async function poll() {
-      try {
-        const next = await api<Job>(`/jobs/${jobId}`, undefined, undefined, controller.signal)
-        setJob(next)
-        if (next.status === 'running') timer = setTimeout(poll, 800)
-        else if (next.status === 'awaiting_approval') {
-          return
-        } else if (next.status === 'approved' || next.status === 'denied') {
-          await api(`/jobs/${jobId}/resume`, identity, {})
-          setJob(current => current ? { ...current, status: 'running', pending: null } : current)
-        } else {
-          setJobId(undefined)
-          if (localStorage.getItem('active_job_id') === jobId) localStorage.removeItem('active_job_id')
-          if (next.status === 'failed') setError(next.error || 'El trabajo ha fallado.')
-          else if (typeof next.result === 'string') {
-            const text = next.result
-            setMessages(previous => [...previous, { role: 'assistant', text }])
-          } else if (next.result) {
-            if (next.result.plans) setPlans(next.result.plans)
-            if (next.result.status === 'saved' || next.result.status === 'already_saved') {
-              setMessages(previous => [...previous, { role: 'assistant', text: 'Plan guardado. Puedes verlo en Mis planes.' }])
-            } else if (next.result.status === 'deleted') {
-              setPlans(previous => previous.filter(plan => plan.id !== (typeof next.result === 'object' ? next.result?.id : undefined)))
-            } else if (next.result.status === 'cancelled') {
-              setMessages(previous => [...previous, { role: 'assistant', text: 'Operacion cancelada. No se ha realizado ningun cambio.' }])
-            }
-          }
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) { setError(errorMessage(error)); setJobId(undefined) }
+  const phase = job?.status === 'awaiting_approval' || job?.status === 'approved' || job?.status === 'denied'
+    ? job.status : 'live'
+
+  function finish(next: Job) {
+    setJobId(undefined); setDraft(undefined)
+    if (localStorage.getItem('active_job_id') === jobId) localStorage.removeItem('active_job_id')
+    if (next.status === 'failed') setError(next.error || 'El trabajo ha fallado.')
+    else if (typeof next.result === 'string') {
+      const text = next.result
+      setMessages(previous => [...previous, { role: 'assistant', text }])
+    } else if (next.result) {
+      if (next.result.plans) setPlans(next.result.plans)
+      if (next.result.status === 'saved' || next.result.status === 'already_saved') {
+        setMessages(previous => [...previous, { role: 'assistant', text: 'Plan guardado. Puedes verlo en Mis planes.' }])
+      } else if (next.result.status === 'deleted') {
+        setPlans(previous => previous.filter(plan => plan.id !== (typeof next.result === 'object' ? next.result?.id : undefined)))
+      } else if (next.result.status === 'cancelled') {
+        setMessages(previous => [...previous, { role: 'assistant', text: 'Operacion cancelada. No se ha realizado ningun cambio.' }])
       }
     }
-    void poll()
-    return () => { controller.abort(); clearTimeout(timer) }
-  }, [jobId, job?.status])
+  }
+
+  useEffect(() => {
+    if (!jobId || phase === 'awaiting_approval') return
+    if (phase === 'approved' || phase === 'denied') {
+      api(`/jobs/${jobId}/resume`, identity, {})
+        .then(() => setJob(current => current ? { ...current, status: 'running', pending: null } : current))
+        .catch(error => { setError(errorMessage(error)); setJobId(undefined) })
+      return
+    }
+    // SSE: "token" trae texto parcial del agente; "status" el estado del trabajo.
+    const source = new EventSource(`/api/jobs/${jobId}/events`)
+    source.addEventListener('token', event => {
+      const token = JSON.parse((event as MessageEvent<string>).data) as { id: string; text: string }
+      setDraft(current => current?.id === token.id
+        ? { id: token.id, text: current.text + token.text }
+        : { id: token.id, text: token.text })
+    })
+    source.addEventListener('status', event => {
+      const next = JSON.parse((event as MessageEvent<string>).data) as Job
+      setJob(next)
+      if (next.status === 'running') return
+      source.close()
+      if (next.status === 'done' || next.status === 'failed') finish(next)
+    })
+    source.onerror = () => {
+      if (source.readyState === EventSource.CLOSED) {
+        setError('Se perdio la conexion con el agente.'); setJobId(undefined); setDraft(undefined)
+      }
+    }
+    return () => source.close()
+  }, [jobId, phase])
 
   async function start(path: string, body: unknown) {
-    setError(''); setSubmitting(true); setJob(undefined)
+    setError(''); setSubmitting(true); setJob(undefined); setDraft(undefined)
     try {
       const result = await api<{ job_id: string }>(path, identity, body)
       if (identity?.authenticated) localStorage.setItem('active_job_id', result.job_id)
@@ -160,7 +174,11 @@ function Agent() {
                 name: 'save_trip_plan', arguments: { title: 'Mi itinerario por Mexico', content: message.text },
               })}>Guardar como plan</button>}
             </article>)}
-            {busy && <p className="progress" role="status">{job?.progress || 'Conectando con Agent...'}</p>}
+            {draft && <article className="message assistant streaming">
+              <strong>Agent</strong>
+              <p>{draft.text}</p>
+            </article>}
+            {busy && !draft && <p className="progress" role="status">{job?.progress || 'Conectando con Agent...'}</p>}
             <div ref={bottom} />
           </div>
           {error && <div role="alert" className="error">{error} <button className="secondary small" onClick={() => window.location.reload()}>Recargar sesion</button></div>}
