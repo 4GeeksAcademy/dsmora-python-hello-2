@@ -1,12 +1,14 @@
 import logging
 import secrets
+import asyncio
+import json
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 
 import httpx
 import jwt
 import redis
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -167,6 +169,13 @@ def logout(response: Response, auth: Mutation):
     return {"status": "signed_out"}
 
 
+@app.post("/api/auth/ws-ticket")
+def websocket_ticket(auth: Mutation):
+    return {
+        "token": issue(auth[1]["sub"], auth[0], "websocket", ttl_seconds=60),
+    }
+
+
 class Chat(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     conversation_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{8,80}$")
@@ -281,23 +290,174 @@ async def job_events(job_id: str, request: Request, auth: Identity):
         relay(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no"}
     )
 
+@app.websocket("/api/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    origin = websocket.headers.get("origin") or websocket.query_params.get("origin")
+    codespaces_proxy = (
+        settings.environment == "development"
+        and settings.codespaces
+        and origin in {"http://localhost:3000", "https://localhost:3000"}
+    )
+    if origin != settings.origin and not codespaces_proxy:
+        await websocket.close(code=4403, reason="Origen no permitido.")
+        return
 
-@app.post("/api/jobs/{job_id}/confirm")
-def confirm(job_id: str, body: Confirmation, auth: Mutation):
-    if not job_id.isalnum() or len(job_id) != 32:
-        raise HTTPException(404, "Trabajo no encontrado.")
-    return agent_request("POST", f"/jobs/{job_id}/confirm", auth, body.model_dump())
+    await websocket.accept()
+    send_lock = asyncio.Lock()
 
+    async def send(payload: dict[str, Any]) -> None:
+        async with send_lock:
+            await websocket.send_json(payload)
 
-@app.post("/api/jobs/{job_id}/approve")
-def approve(job_id: str, body: PlanApproval, auth: Mutation):
-    if not job_id.isalnum() or len(job_id) != 32:
-        raise HTTPException(404, "Trabajo no encontrado.")
-    return agent_request("POST", f"/jobs/{job_id}/approve", auth, body.model_dump())
+    def authenticate_ticket(token: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        claims = verify(token, "websocket")
+        if not database().set(
+            f"websocket-ticket:{claims['jti']}", "1", ex=60, nx=True
+        ):
+            raise jwt.InvalidTokenError("El ticket WebSocket ya fue utilizado.")
+        return claims, active_session(claims["sid"])
 
+    active_job_id: str | None = None
+    try:
+        try:
+            raw_auth = await asyncio.wait_for(websocket.receive_text(), timeout=10)
+            if len(raw_auth) > 20000:
+                raise jwt.InvalidTokenError("Credencial WebSocket invalida.")
+            first = json.loads(raw_auth)
+            if not isinstance(first, dict) or first.get("type") != "auth":
+                raise jwt.InvalidTokenError("Falta la credencial WebSocket.")
+            claims, session = await asyncio.to_thread(
+                authenticate_ticket, first.get("token", "")
+            )
+            auth = (claims["sid"], session)
+        except asyncio.TimeoutError:
+            await send({"type": "error", "code": "AUTH_TIMEOUT", "message": "La autenticacion del socket ha caducado."})
+            await websocket.close(code=4401)
+            return
+        except (jwt.PyJWTError, jwt.PyJWKClientError, TypeError, KeyError, json.JSONDecodeError) as error:
+            await send({"type": "error", "code": "UNAUTHORIZED", "message": "La sesion no es valida."})
+            await websocket.close(code=4401)
+            return
+        await send({"type": "ready", "session_id": auth[0]})
 
-@app.post("/api/jobs/{job_id}/resume")
-def resume(job_id: str, auth: Mutation):
-    if not job_id.isalnum() or len(job_id) != 32:
-        raise HTTPException(404, "Trabajo no encontrado.")
-    return agent_request("POST", f"/jobs/{job_id}/resume", auth, {})
+        while True:
+            raw_frame = await websocket.receive_text()
+            if len(raw_frame) > 20000:
+                await send({"type": "error", "code": "MESSAGE_TOO_LARGE", "message": "El mensaje excede el limite permitido."})
+                continue
+            try:
+                frame = json.loads(raw_frame)
+            except json.JSONDecodeError:
+                await send({"type": "error", "code": "INVALID_MESSAGE", "message": "Mensaje WebSocket invalido."})
+                continue
+            if not isinstance(frame, dict):
+                await send({"type": "error", "code": "INVALID_MESSAGE", "message": "Mensaje WebSocket invalido."})
+                continue
+            kind = frame.get("type")
+            if kind == "attach_job":
+                job_id = frame.get("job_id", "")
+                if not isinstance(job_id, str) or not job_id.isalnum() or len(job_id) != 32:
+                    await send({"type": "error", "code": "INVALID_JOB", "message": "Trabajo no encontrado."})
+                    continue
+                try:
+                    state = await asyncio.to_thread(agent_request, "GET", f"/jobs/{job_id}", auth)
+                except HTTPException as error:
+                    await send({"type": "error", "code": "JOB_NOT_FOUND", "message": str(error.detail)})
+                    continue
+                if active_job_id and active_job_id != job_id:
+                    try:
+                        active_state = await asyncio.to_thread(
+                            agent_request, "GET", f"/jobs/{active_job_id}", auth,
+                        )
+                    except HTTPException:
+                        active_state = {"status": "failed"}
+                    if active_state["status"] not in {"done", "failed", "interrupted"}:
+                        await send({"type": "error", "code": "JOB_ACTIVE", "message": "Espera a que termine el trabajo actual."})
+                        continue
+                active_job_id = (
+                    None if state["status"] in {"done", "failed", "interrupted"} else job_id
+                )
+                await send({"type": "control_ready", "job_id": job_id, "status": state["status"]})
+            elif kind == "release_job":
+                job_id = frame.get("job_id")
+                if job_id == active_job_id:
+                    active_job_id = None
+                await send({"type": "control_released", "job_id": job_id})
+            elif kind == "interrupt":
+                job_id = frame.get("job_id")
+                if not active_job_id or job_id != active_job_id:
+                    await send({"type": "error", "code": "NO_ACTIVE_JOB", "message": "No hay una generacion activa."})
+                    continue
+                try:
+                    result = await asyncio.to_thread(
+                        agent_request, "POST", f"/jobs/{job_id}/interrupt", auth, {},
+                    )
+                except HTTPException as error:
+                    await send({"type": "error", "code": "INTERRUPT_REJECTED", "message": str(error.detail)})
+                    continue
+                await send({"type": "interrupt_ack", "job_id": job_id, **result})
+            elif kind in {"confirm", "approve"}:
+                job_id = frame.get("job_id")
+                if not active_job_id or job_id != active_job_id:
+                    await send({"type": "error", "code": "NO_ACTIVE_JOB", "message": "La aprobacion ya no esta pendiente."})
+                    continue
+                try:
+                    if kind == "confirm":
+                        body = Confirmation.model_validate({
+                            "confirmation_id": frame.get("confirmation_id"),
+                            "accept": frame.get("accept"),
+                        })
+                        await asyncio.to_thread(
+                            agent_request, "POST", f"/jobs/{job_id}/confirm", auth, body.model_dump(),
+                        )
+                    else:
+                        body = PlanApproval.model_validate({
+                            "request_id": frame.get("request_id"),
+                            "version": frame.get("version"),
+                            "digest": frame.get("digest"),
+                            "action": frame.get("action"),
+                        })
+                        expected_status = "approved" if body.action == "approve" else "denied"
+                        try:
+                            await asyncio.to_thread(
+                                agent_request, "POST", f"/jobs/{job_id}/approve", auth, body.model_dump(),
+                            )
+                            decision_state = expected_status
+                        except HTTPException as error:
+                            if error.status_code != 409:
+                                raise
+                            current = await asyncio.to_thread(
+                                agent_request, "GET", f"/jobs/{job_id}", auth,
+                            )
+                            decision_state = expected_status
+                            if current["status"] not in {decision_state, "running"} and not (
+                                body.action == "approve" and current["status"] == "done"
+                            ) and not (
+                                body.action == "deny"
+                                and current["status"] == "failed"
+                                and current.get("error_code") == "APPROVAL_DENIED"
+                            ):
+                                raise
+                            if current["status"] in {"done", "failed"}:
+                                active_job_id = None
+                                await send({"type": "approval_received", "job_id": job_id, "status": current["status"]})
+                                continue
+                            if current["status"] == "running":
+                                decision_state = "running"
+                        if decision_state in {"approved", "denied"}:
+                            await asyncio.to_thread(
+                                agent_request, "POST", f"/jobs/{job_id}/resume", auth, {},
+                            )
+                except (HTTPException, ValueError) as error:
+                    detail = str(error.detail) if isinstance(error, HTTPException) else "La decision no es valida."
+                    await send({"type": "error", "code": "APPROVAL_REJECTED", "message": detail})
+                    continue
+                await send({"type": "approval_received", "job_id": job_id, "status": "running"})
+            else:
+                await send({"type": "error", "code": "UNKNOWN_MESSAGE", "message": "Tipo de mensaje desconocido."})
+    except WebSocketDisconnect:
+        pass
+    except redis.RedisError as error:
+        logger.error("Redis no disponible durante el WebSocket: %s", type(error).__name__)
+        await send({"type": "error", "code": "DATA_UNAVAILABLE", "message": "El servicio de datos no esta disponible."})
+        await websocket.close(code=1013)

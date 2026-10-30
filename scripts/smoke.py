@@ -1,5 +1,6 @@
 """Explicit operational smoke checks; does not call the paid LLM or external weather API."""
 
+import json
 import os
 import sys
 import time
@@ -7,6 +8,7 @@ import uuid
 
 import httpx
 import jwt
+from websockets.sync.client import connect
 
 from dsmora_python_hello_2.security import SCOPES, database, issue, verify
 from dsmora_python_hello_2.web_config import settings
@@ -95,31 +97,132 @@ def extended() -> None:
         }).raise_for_status().json()
         headers["X-CSRF-Token"] = identity["csrf"]
 
+        websocket_url = BASE.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
+
         def run(name, arguments, accept):
             job_id = client.post("/api/tools", headers=headers, json={
                 "name": name, "arguments": arguments,
             }).raise_for_status().json()["job_id"]
-            deadline, answered = time.monotonic() + 35, set()
-            while time.monotonic() < deadline:
-                state = client.get(f"/api/jobs/{job_id}").raise_for_status().json()
-                pending = state.get("pending")
-                if pending and pending["id"] not in answered:
-                    payload = {"confirmation_id": pending["id"], "accept": accept}
-                    client.post(f"/api/jobs/{job_id}/confirm", headers=headers, json=payload).raise_for_status()
-                    replay = client.post(f"/api/jobs/{job_id}/confirm", headers=headers, json=payload)
-                    require(replay.status_code == 409, "Se acepto una confirmacion repetida.")
-                    answered.add(pending["id"])
-                if state["status"] != "running":
-                    require(state["status"] == "done", f"Fallo en {name}: {state.get('error')}")
-                    return state["result"], bool(answered)
-                time.sleep(0.25)
+            ticket = client.post(
+                "/api/auth/ws-ticket", headers=headers, json={}
+            ).raise_for_status().json()["token"]
+            deadline, answered, replay_handled = time.monotonic() + 35, set(), False
+            with connect(
+                f"{websocket_url}/socket/chat",
+                origin=settings.origin,
+                open_timeout=10,
+            ) as socket:
+                socket.send(json.dumps({"type": "auth", "token": ticket}))
+                require(json.loads(socket.recv()).get("type") == "ready", "No se autentico el WebSocket.")
+                socket.send(json.dumps({"type": "attach_job", "job_id": job_id}))
+                attached = json.loads(socket.recv())
+                require(attached.get("type") == "control_ready", "No se adjunto el canal de control.")
+
+                last_event_id = ""
+                while time.monotonic() < deadline:
+                    stream_headers = {"Last-Event-ID": last_event_id} if last_event_id else {}
+                    with client.stream(
+                        "GET", f"/api/jobs/{job_id}/events", headers=stream_headers,
+                    ) as response:
+                        response.raise_for_status()
+                        event_name, data_lines = "", []
+                        for line in response.iter_lines():
+                            if time.monotonic() >= deadline:
+                                break
+                            if line.startswith("id:"):
+                                last_event_id = line[3:].strip()
+                            elif line.startswith("event:"):
+                                event_name = line[6:].strip()
+                            elif line.startswith("data:"):
+                                data_lines.append(line[5:].strip())
+                            elif not line and data_lines:
+                                event = json.loads("\n".join(data_lines))
+                                if event_name == "status":
+                                    pending = event.get("pending")
+                                    if pending:
+                                        if pending.get("version") is not None:
+                                            decision = {
+                                                "type": "approve",
+                                                "job_id": job_id,
+                                                "request_id": pending["id"],
+                                                "version": pending["version"],
+                                                "digest": pending["digest"],
+                                                "action": "approve" if accept else "deny",
+                                            }
+                                        else:
+                                            decision = {
+                                                "type": "confirm",
+                                                "job_id": job_id,
+                                                "confirmation_id": pending["id"],
+                                                "accept": accept,
+                                            }
+                                        socket.send(json.dumps(decision))
+                                        acknowledgement = json.loads(socket.recv())
+                                        require(
+                                            acknowledgement.get("type") == "approval_received",
+                                            acknowledgement.get("message", "No se registro la decision."),
+                                        )
+                                        answered.add(pending["id"])
+                                        socket.send(json.dumps(decision))
+                                        replay = json.loads(socket.recv())
+                                        replay_handled = replay.get("type") in {"error", "approval_received"}
+                                        require(replay_handled, "No se atendio la decision repetida.")
+                                        if replay.get("type") == "error":
+                                            require(
+                                                replay.get("code") in {"APPROVAL_REJECTED", "NO_ACTIVE_JOB"},
+                                                replay.get("message", "Error al repetir la decision."),
+                                            )
+                                    if event["status"] in {"done", "failed", "interrupted"}:
+                                        result = event.get("result")
+                                        if event["status"] != "done":
+                                            result = {
+                                                "status": event["status"],
+                                                "error": event.get("error"),
+                                            }
+                                        return result, bool(answered), replay_handled
+                                    if event["status"] == "awaiting_approval":
+                                        break
+                                event_name, data_lines = "", []
             raise RuntimeError(f"Timeout al ejecutar {name}.")
 
-        result, confirmed = run("save_trip_plan", {"title": "Smoke cancelled", "content": "Plan de Puebla."}, False)
-        require(confirmed and result["status"] == "cancelled", "Guardar sin consentimiento no fue cancelado.")
+        result, confirmed, replay_handled = run(
+            "save_trip_plan",
+            {
+                "title": "Tres dias en Puebla",
+                "content": (
+                    "Propuesta de tres dias en Puebla, Mexico. Dia 1: recorrido a pie por el centro "
+                    "historico y visita a museos; traslado local en transporte publico. Dia 2: visita "
+                    "a Cholula y caminata por sus espacios culturales; traslado en autobus regional. "
+                    "Dia 3: mercados y gastronomia local, con regreso al centro en transporte publico. "
+                    "Presupuesto estimado: 1,500 MXN por persona para comidas, entradas y traslados "
+                    "locales. Horarios, precios y disponibilidad deben confirmarse."
+                ),
+            },
+            False,
+        )
+        require(
+            confirmed and result["status"] == "failed" and "no se guardo" in (result.get("error") or "").lower(),
+            f"Guardar sin consentimiento no fue rechazado: {result!r}",
+        )
+        require(replay_handled, "No se atendio una aprobacion repetida por WebSocket.")
         title = f"Smoke {uuid.uuid4().hex}"
-        result, confirmed = run("save_trip_plan", {"title": title, "content": "Plan de prueba por Puebla, Mexico."}, True)
-        require(confirmed and result["status"] == "saved", "No se pudo guardar el plan confirmado.")
+        result, confirmed, replay_handled = run(
+            "save_trip_plan",
+            {
+                "title": title,
+                "content": (
+                    "Propuesta de tres dias en Puebla, Mexico. Dia 1: recorrido a pie por el centro "
+                    "historico y visita a museos; traslado local en transporte publico. Dia 2: visita "
+                    "a Cholula y caminata por sus espacios culturales; traslado en autobus regional. "
+                    "Dia 3: mercados y gastronomia local, con regreso al centro en transporte publico. "
+                    "Presupuesto estimado: 1,500 MXN por persona para comidas, entradas y traslados "
+                    "locales. Horarios, precios y disponibilidad deben confirmarse."
+                ),
+            },
+            True,
+        )
+        require(confirmed and result["status"] == "saved", f"No se pudo guardar el plan confirmado: {result!r}")
+        require(replay_handled, "No se atendio una aprobacion repetida por WebSocket.")
         plan = result["plan"]
         token = client.cookies.get("session")
         claims = verify(token, "backend")
@@ -164,10 +267,12 @@ def extended() -> None:
                     require(rejected.status_code == 401, "Se aceptaron claims invalidos.")
         finally:
             database().delete(f"session:{sid}")
-        weather, confirmed = run("get_weather", {"city": "Puebla"}, False)
+        weather, confirmed, replay_handled = run("get_weather", {"city": "Puebla"}, False)
         require(confirmed and "consentimiento" in weather, "No se respeto el rechazo del clima.")
-        deleted, confirmed = run("delete_trip_plan", {"plan_id": plan["id"]}, True)
+        require(replay_handled, "No se atendio una confirmacion repetida por WebSocket.")
+        deleted, confirmed, replay_handled = run("delete_trip_plan", {"plan_id": plan["id"]}, True)
         require(confirmed and deleted["status"] == "deleted", "No se elimino el plan confirmado.")
+        require(replay_handled, "No se atendio una confirmacion repetida por WebSocket.")
         client.post("/api/auth/logout", headers=headers, json={}).raise_for_status()
     print("EXTENDED OK: consentimiento, planes privados, scopes, replay, sesiones MCP y claims JWT.")
 

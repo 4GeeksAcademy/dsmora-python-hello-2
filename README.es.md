@@ -60,6 +60,15 @@ navegador -> TanStack Start /api -> FastAPI -> agente LangGraph -> FastMCP
                                     TinyDB        Redis       Open-Meteo
 ```
 
+- Los mensajes del chat se envian por HTTP y los tokens/estados se reciben por
+  Server-Sent Events (SSE). Un WebSocket bidireccional separado transporta las
+  interrupciones y decisiones de aprobacion. Su ticket se obtiene con CSRF y
+  caduca en 60 segundos; no se expone el JWT de sesion en la URL ni al servicio
+  frontend.
+- Detener una generacion cancela cooperativamente el trabajo del agente y conserva
+  los tokens parciales. Las aprobaciones de planes pausan LangGraph con
+  `interrupt()` y se reanudan desde el checkpoint SQLite durable despues de la
+  decision recibida por WebSocket.
 - Invitados: solo planifican viajes por Mexico; su agente no registra herramientas MCP.
 - Autenticados: clima y guardar/listar/eliminar exclusivamente sus propios planes.
 - El guardado de planes requiere una aprobacion humana durable antes de escribir

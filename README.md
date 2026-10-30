@@ -60,6 +60,13 @@ browser -> TanStack Start /api proxy -> FastAPI -> LangGraph agent -> FastMCP
                                        TinyDB        Redis       Open-Meteo
 ```
 
+- Chat messages use HTTP and streamed tokens/statuses use Server-Sent Events
+  (SSE). A separate bidirectional WebSocket carries stop requests and approval
+  decisions; its CSRF-protected ticket expires after 60 seconds, and the
+  session JWT is never exposed in the URL or to the frontend service.
+- Stopping a response cooperatively cancels the agent job and keeps partial
+  output. Plan approvals pause LangGraph with `interrupt()` and resume from the
+  durable SQLite checkpoint after the WebSocket decision is recorded.
 - Guests can only plan trips within Mexico. Their agent has no MCP tools.
 - Logged-in users can query weather and save/list/delete **their own** trip plans.
 - Weather queries and writes require an explicit, one-use confirmation in the

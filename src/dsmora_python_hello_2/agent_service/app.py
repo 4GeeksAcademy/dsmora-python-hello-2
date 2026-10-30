@@ -122,14 +122,21 @@ def publish_token(job_id: str, message_id: str, text: str) -> None:
     pipe.execute()
 
 
+class JobInterrupted(Exception):
+    pass
+
+
 class JobContext:
     def __init__(self, job_id: str, claims: dict[str, Any], token: str | None):
         self.job_id, self.claims, self.token = job_id, claims, token
         self.deadline = time.monotonic() + settings.job_timeout
         self.lock = threading.Lock()
+        self.cancelled = threading.Event()
         self.save_result: Any = None
 
     def check(self) -> None:
+        if self.cancelled.is_set():
+            raise JobInterrupted()
         active_session(self.claims["sid"])
         if time.monotonic() >= self.deadline:
             raise RuntimeError("Tiempo maximo del trabajo agotado.")
@@ -221,6 +228,10 @@ class JobContext:
         update(self.job_id, progress=progress)
 
 
+active_jobs: dict[str, JobContext] = {}
+active_jobs_lock = threading.Lock()
+
+
 class CheckedModel:
     def __init__(self, model: OpenAICompatibleModel, context: JobContext):
         self.model, self.context = model, context
@@ -258,9 +269,13 @@ def execute(
                     conversation_id=execution_data["conversation_id"],
                     job_id=execution_data["job_id"],
                     request_id=approval["request_id"],
-                    operation_id=approval["operation_id"],
+                    operation_id=envelope["effect"]["operation_id"],
                     candidate=envelope["candidate"],
                 )
+
+            def publish_checked_token(message_id: str, text: str) -> None:
+                context.check()
+                publish_token(context.job_id, message_id, text)
 
             agent = build_orchestrator(
                 model,
@@ -270,7 +285,7 @@ def execute(
                 checkpointer=app.state.checkpointer,
                 register_prepared=register_prepared,
                 save_candidate=context.save_candidate if session["authenticated"] else None,
-                on_token=lambda message_id, text: publish_token(context.job_id, message_id, text),
+                on_token=publish_checked_token,
             )
             conversation_id = chat.conversation_id if chat else "tools"
             if chat is not None:
@@ -344,6 +359,31 @@ def execute(
             pending="",
             progress="Completado.",
         )
+    except JobInterrupted:
+        if context.save_result is not None:
+            result = (
+                context.save_result
+                if tool is not None
+                else "Plan guardado. Puedes verlo en tus planes."
+            )
+            app.state.approvals.update(context.job_id, "completed", result=result)
+            update(
+                context.job_id,
+                status="done",
+                result=json.dumps(result, ensure_ascii=False),
+                pending="",
+                progress="Completado.",
+            )
+        else:
+            approval = app.state.approvals.get(context.job_id)
+            if approval is not None and approval["status"] == "resuming":
+                app.state.approvals.release_resume(context.job_id)
+            update(
+                context.job_id,
+                status="interrupted",
+                pending="",
+                progress="Generacion detenida por el usuario.",
+            )
     except Exception as error:
         logger.error("Trabajo %s fallo: %s: %.200s", context.job_id, type(error).__name__, error, exc_info=True)
         try:
@@ -372,6 +412,8 @@ def execute(
         except redis.RedisError:
             logger.error("No se pudo registrar el fallo del trabajo %s.", context.job_id)
     finally:
+        with active_jobs_lock:
+            active_jobs.pop(context.job_id, None)
         try:
             database().eval(
                 "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0",
@@ -411,10 +453,15 @@ def start(request: Request, claims: dict[str, Any], chat=None, tool=None):
         })
         pipe.expire(f"job:{job_id}", settings.history_ttl)
         pipe.execute()
-        executor.submit(execute, JobContext(job_id, claims, token), chat, tool, lock_key)
+        context = JobContext(job_id, claims, token)
+        with active_jobs_lock:
+            active_jobs[job_id] = context
+        executor.submit(execute, context, chat, tool, lock_key)
         submitted = True
     finally:
         if not submitted:
+            with active_jobs_lock:
+                active_jobs.pop(job_id, None)
             slots.release()
             try:
                 database().eval(
@@ -573,6 +620,19 @@ def confirm(job_id: str, body: Confirmation, claims: Auth):
     return {"status": "received"}
 
 
+@app.post("/jobs/{job_id}/interrupt")
+def interrupt_job(job_id: str, claims: Auth):
+    job = owned(job_id, claims)
+    if job.get("status") != "running":
+        raise HTTPException(409, "No hay una generacion activa que detener.")
+    with active_jobs_lock:
+        context = active_jobs.get(job_id)
+        if context is None:
+            raise HTTPException(409, "La generacion ya termino.")
+        context.cancelled.set()
+    return {"status": "interrupting"}
+
+
 @app.post("/jobs/{job_id}/approve")
 def approve(job_id: str, body: PlanApproval, claims: Auth):
     owned(job_id, claims)
@@ -643,16 +703,21 @@ def resume_job(job_id: str, request: Request, claims: Auth):
         "version": claimed["candidate"]["version"],
         "digest": claimed["digest"],
     }
+    context = JobContext(job_id, claims, token)
     try:
+        with active_jobs_lock:
+            active_jobs[job_id] = context
         executor.submit(
             execute,
-            JobContext(job_id, claims, token),
+            context,
             None,
             None,
             lock_key,
             decision,
         )
     except RuntimeError as error:
+        with active_jobs_lock:
+            active_jobs.pop(job_id, None)
         database().delete(lock_key)
         slots.release()
         app.state.approvals.release_resume(job_id)

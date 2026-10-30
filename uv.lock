@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -565,6 +565,7 @@ dependencies = [
     { name = "redis" },
     { name = "tinydb" },
     { name = "uvicorn" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -582,6 +583,7 @@ requires-dist = [
     { name = "redis", specifier = ">=8.1.0" },
     { name = "tinydb", specifier = ">=4.8" },
     { name = "uvicorn", specifier = ">=0.34" },
+    { name = "websockets", specifier = ">=15.0" },
 ]
 
 [[package]]

@@ -37,7 +37,13 @@ def jwks() -> dict[str, Any]:
     return {"keys": [{**public, "kid": "local-1", "use": "sig", "alg": "RS256"}]}
 
 
-def issue(subject: str, sid: str, audience: str, scopes: str = "") -> str:
+def issue(
+    subject: str,
+    sid: str,
+    audience: str,
+    scopes: str = "",
+    ttl_seconds: int | None = None,
+) -> str:
     now = int(time.time())
     return jwt.encode(
         {
@@ -46,7 +52,11 @@ def issue(subject: str, sid: str, audience: str, scopes: str = "") -> str:
             "sid": sid,
             "aud": audience,
             "iat": now,
-            "exp": now + (settings.session_ttl if audience == "backend" else settings.delegated_ttl),
+            "exp": now + (
+                ttl_seconds
+                if ttl_seconds is not None
+                else settings.session_ttl if audience == "backend" else settings.delegated_ttl
+            ),
             "jti": secrets.token_urlsafe(24),
             "scope": scopes,
         },

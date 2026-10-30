@@ -40,7 +40,7 @@ services:
       DATA_DIR: /data
       JWT_KEY_FILE: /data/jwt.pem
       SEED_DEMO_USER: "true"
-      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-test1234$$}
     volumes:
       - backend-data:/data
     depends_on:

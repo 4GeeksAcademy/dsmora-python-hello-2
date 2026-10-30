@@ -3,7 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 import { api, errorMessage, type Identity, type Job, type Plan } from '../api'
 
 export const Route = createFileRoute('/')({ component: Agent })
-type Message = { role: 'user' | 'assistant'; text: string }
+type Message = { role: 'user' | 'assistant'; text: string; interrupted?: boolean }
+type SocketEvent = {
+  type: string
+  job_id?: string
+  status?: Job['status']
+  code?: string
+  message?: string
+}
 
 function Agent() {
   const [identity, setIdentity] = useState<Identity>()
@@ -15,27 +22,55 @@ function Agent() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [interrupting, setInterrupting] = useState(false)
+  const [socketReady, setSocketReady] = useState(false)
+  const [controlJobId, setControlJobId] = useState<string>()
   const [draft, setDraft] = useState<{ id: string; text: string }>()
   const conversation = useRef('')
   const bottom = useRef<HTMLDivElement>(null)
+  const socket = useRef<WebSocket | undefined>(undefined)
+  const streamedDraft = useRef<{ id: string; text: string } | undefined>(undefined)
   const busy = Boolean(jobId) || submitting
+  const phase = job?.status === 'awaiting_approval' ? 'awaiting_approval' : 'live'
 
   useEffect(() => {
     conversation.current = crypto.randomUUID()
     api<Identity>('/auth/me').then(value => {
       setIdentity(value)
       const savedJobId = value.authenticated ? localStorage.getItem('active_job_id') : null
-      if (savedJobId) setJobId(savedJobId)
+      if (savedJobId) {
+        setJobId(savedJobId)
+      }
     }).catch(error => setError(errorMessage(error)))
   }, [])
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, job?.pending, draft?.text])
 
-  const phase = job?.status === 'awaiting_approval' || job?.status === 'approved' || job?.status === 'denied'
-    ? job.status : 'live'
+  function sendControl(payload: Record<string, unknown>) {
+    const currentSocket = socket.current
+    if (currentSocket?.readyState === WebSocket.OPEN) {
+      currentSocket.send(JSON.stringify(payload))
+      return true
+    }
+    return false
+  }
 
-  function finish(next: Job) {
-    setJobId(undefined); setDraft(undefined)
-    if (localStorage.getItem('active_job_id') === jobId) localStorage.removeItem('active_job_id')
+  function finish(next: Job, finishedJobId?: string) {
+    if (finishedJobId) sendControl({ type: 'release_job', job_id: finishedJobId })
+    if (next.status === 'interrupted') {
+      const partial = streamedDraft.current?.text || ''
+      setMessages(previous => [...previous, {
+        role: 'assistant',
+        text: partial || 'Generacion detenida.',
+        interrupted: true,
+      }])
+    }
+    setJobId(undefined); setDraft(undefined); setJob(next)
+    streamedDraft.current = undefined
+    setControlJobId(undefined)
+    setInterrupting(false)
+    if (!finishedJobId || localStorage.getItem('active_job_id') === finishedJobId) {
+      localStorage.removeItem('active_job_id')
+    }
     if (next.status === 'failed') setError(next.error || 'El trabajo ha fallado.')
     else if (typeof next.result === 'string') {
       const text = next.result
@@ -54,68 +89,182 @@ function Agent() {
 
   useEffect(() => {
     if (!jobId || phase === 'awaiting_approval') return
-    if (phase === 'approved' || phase === 'denied') {
-      api(`/jobs/${jobId}/resume`, identity, {})
-        .then(() => setJob(current => current ? { ...current, status: 'running', pending: null } : current))
-        .catch(error => { setError(errorMessage(error)); setJobId(undefined) })
-      return
-    }
-    // SSE: "token" trae texto parcial del agente; "status" el estado del trabajo.
     const source = new EventSource(`/api/jobs/${jobId}/events`)
     source.addEventListener('token', event => {
-      const token = JSON.parse((event as MessageEvent<string>).data) as { id: string; text: string }
-      setDraft(current => current?.id === token.id
-        ? { id: token.id, text: current.text + token.text }
-        : { id: token.id, text: token.text })
+      try {
+        const payload = JSON.parse((event as MessageEvent<string>).data) as { id: string; text: string }
+        streamedDraft.current = streamedDraft.current?.id === payload.id
+          ? { id: payload.id, text: streamedDraft.current.text + payload.text }
+          : { id: payload.id, text: payload.text }
+        setDraft(streamedDraft.current)
+      } catch {
+        source.close()
+        setError('El servidor envio un evento SSE invalido.')
+      }
     })
     source.addEventListener('status', event => {
-      const next = JSON.parse((event as MessageEvent<string>).data) as Job
-      setJob(next)
-      if (next.status === 'running') return
-      source.close()
-      if (next.status === 'done' || next.status === 'failed') finish(next)
+      try {
+        const next = JSON.parse((event as MessageEvent<string>).data) as Job
+        setJob(next)
+        if (next.status === 'awaiting_approval') {
+          source.close()
+        } else if (['done', 'failed', 'interrupted'].includes(next.status)) {
+          source.close()
+          finish(next, jobId)
+        }
+      } catch {
+        source.close()
+        setError('El servidor envio un estado SSE invalido.')
+      }
     })
     source.onerror = () => {
       if (source.readyState === EventSource.CLOSED) {
-        setError('Se perdio la conexion con el agente.'); setJobId(undefined); setDraft(undefined)
+        setError('Se interrumpio el flujo de respuestas del agente.')
       }
     }
     return () => source.close()
   }, [jobId, phase])
 
-  async function start(path: string, body: unknown) {
-    setError(''); setSubmitting(true); setJob(undefined); setDraft(undefined)
+  useEffect(() => {
+    if (!identity) return
+    let closed = false
+    let connection: WebSocket | undefined
+
+    async function connect(session: Identity) {
+      try {
+        const { token } = await api<{ token: string }>('/auth/ws-ticket', session, {})
+        if (closed) return
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        connection = new WebSocket(`${protocol}//${window.location.host}/socket/chat`)
+        socket.current = connection
+        connection.onopen = () => connection?.send(JSON.stringify({ type: 'auth', token }))
+        connection.onmessage = event => {
+          let data: SocketEvent
+          try { data = JSON.parse(event.data as string) as SocketEvent }
+          catch {
+            setError('El servidor envio un evento invalido.')
+            return
+          }
+          switch (data.type) {
+            case 'ready': {
+              setSocketReady(true)
+              const savedJobId = session.authenticated ? localStorage.getItem('active_job_id') : null
+              if (savedJobId) {
+                connection?.send(JSON.stringify({ type: 'attach_job', job_id: savedJobId }))
+              }
+              break
+            }
+            case 'control_ready':
+              if (data.job_id) {
+                setControlJobId(data.job_id)
+                setSubmitting(false)
+              }
+              break
+            case 'approval_received':
+              setJob(current => current && data.status !== 'done' && data.status !== 'failed'
+                ? { ...current, status: 'running', pending: null }
+                : current)
+              setConfirming(false)
+              break
+            case 'interrupt_ack':
+              break
+            case 'error':
+              setError(data.message || 'No se pudo completar la solicitud.')
+              setSubmitting(false)
+              if (data.code === 'INTERRUPT_REJECTED') setInterrupting(false)
+              if (data.code === 'APPROVAL_REJECTED') setConfirming(false)
+              break
+          }
+        }
+        connection.onclose = () => {
+          if (closed) return
+          setSocketReady(false)
+          setError('Se perdio la conexion con el agente. Recarga la sesion para reconectar.')
+          setSubmitting(false)
+        }
+        connection.onerror = () => setError('No se pudo conectar con el agente.')
+      } catch (error) {
+        if (!closed) setError(errorMessage(error))
+      }
+    }
+
+    void connect(identity)
+    return () => {
+      closed = true
+      setSocketReady(false)
+      connection?.close()
+      if (socket.current === connection) socket.current = undefined
+    }
+  }, [identity])
+
+  async function start(path: '/chat' | '/tools', body: Record<string, unknown>) {
+    if (!socketReady) {
+      setError('El canal de control con el agente no esta disponible.')
+      return
+    }
+    setError('')
+    setSubmitting(true)
+    setJob(undefined)
+    setDraft(undefined)
+    setControlJobId(undefined)
+    streamedDraft.current = undefined
     try {
       const result = await api<{ job_id: string }>(path, identity, body)
-      if (identity?.authenticated) localStorage.setItem('active_job_id', result.job_id)
       setJobId(result.job_id)
-    } catch (error) { setError(errorMessage(error)) }
-    finally { setSubmitting(false) }
+      setJob({ status: 'running', progress: 'Generando tu respuesta.' })
+      setInterrupting(false)
+      if (identity?.authenticated) localStorage.setItem('active_job_id', result.job_id)
+      if (!sendControl({ type: 'attach_job', job_id: result.job_id })) {
+        throw new Error('El canal de control con el agente no esta disponible.')
+      }
+    } catch (error) {
+      setSubmitting(false)
+      setError(errorMessage(error))
+    }
   }
 
-  async function confirm(accept: boolean) {
-    if (!jobId || !job?.pending) return
+  function confirm(accept: boolean) {
+    if (!jobId || controlJobId !== jobId || !job?.pending) return
     setConfirming(true)
     try {
       const pending = job.pending
+      const currentSocket = socket.current
+      if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
+        throw new Error('El canal con el agente no esta disponible.')
+      }
       if (pending.version !== undefined && pending.digest) {
-        const result = await api<{ status: 'approved' | 'denied' }>(
-          `/jobs/${jobId}/approve`,
-          identity,
-          {
+        currentSocket.send(JSON.stringify({
+          type: 'approve',
+          job_id: jobId,
             request_id: pending.id,
             version: pending.version,
             digest: pending.digest,
             action: accept ? 'approve' : 'deny',
-          },
-        )
-        setJob(current => current ? { ...current, status: result.status, pending: null } : current)
+        }))
       } else {
-        await api(`/jobs/${jobId}/confirm`, identity, { confirmation_id: pending.id, accept })
-        setJob(current => current ? { ...current, pending: null } : current)
+        currentSocket.send(JSON.stringify({
+          type: 'confirm',
+          job_id: jobId,
+          confirmation_id: pending.id,
+          accept,
+        }))
       }
-    } catch (error) { setError(errorMessage(error)) }
-    finally { setConfirming(false) }
+    } catch (error) {
+      setConfirming(false)
+      setError(errorMessage(error))
+    }
+  }
+
+  function interrupt() {
+    if (!jobId || controlJobId !== jobId || !socket.current || socket.current.readyState !== WebSocket.OPEN) {
+      setError('El canal con el agente no esta disponible.')
+      return
+    }
+    setInterrupting(true)
+    if (!sendControl({ type: 'interrupt', job_id: jobId })) {
+      setInterrupting(false)
+      setError('El canal con el agente no esta disponible.')
+    }
   }
 
   return (
@@ -167,9 +316,10 @@ function Agent() {
                 <button className="suggestion" key={text} disabled={busy} onClick={() => setInput(text)}>{text}</button>
               )}
             </div>}
-            {messages.map((message, index) => <article className={`message ${message.role}`} key={index}>
+            {messages.map((message, index) => <article className={`message ${message.role}${message.interrupted ? ' interrupted' : ''}`} key={index}>
               <strong>{message.role === 'user' ? 'Tu' : 'Agent'}</strong>
               <p>{message.text}</p>
+              {message.interrupted && <small>Respuesta detenida</small>}
               {message.role === 'assistant' && identity?.authenticated && <button className="secondary small" disabled={busy} onClick={() => void start('/tools', {
                 name: 'save_trip_plan', arguments: { title: 'Mi itinerario por Mexico', content: message.text },
               })}>Guardar como plan</button>}
@@ -185,15 +335,18 @@ function Agent() {
           <form className="composer" onSubmit={event => {
             event.preventDefault()
             const message = input.trim()
-            if (!message || busy || !identity) return
+            if (!message || busy || !identity || !socketReady) return
             setMessages(previous => [...previous, { role: 'user', text: message }]); setInput('')
             void start('/chat', { message, conversation_id: conversation.current })
           }}>
             <label className="sr-only" htmlFor="message">Tu mensaje</label>
-            <textarea id="message" placeholder="¿Que viaje tienes en mente?" maxLength={4000} rows={2} value={input} onChange={event => setInput(event.target.value)} disabled={busy || !identity} />
-            <button disabled={busy || !identity || !input.trim()}>Enviar</button>
+            <textarea id="message" placeholder="¿Que viaje tienes en mente?" maxLength={4000} rows={2} value={input} onChange={event => setInput(event.target.value)} disabled={busy || !identity || !socketReady} />
+            {jobId && job?.status === 'running' && <button className="danger" type="button" disabled={interrupting || controlJobId !== jobId} onClick={interrupt}>
+              {interrupting ? 'Deteniendo…' : 'Detener'}
+            </button>}
+            <button disabled={busy || !identity || !socketReady || !input.trim()}>Enviar</button>
           </form>
-          <p className="chat-footnote">Las conversaciones caducan. No compartas informacion sensible.</p>
+          <p className="chat-footnote">{socketReady ? 'Canal conectado. ' : 'Conectando con el agente… ' }Las conversaciones caducan. No compartas informacion sensible.</p>
         </section>
       </main>
       {job?.pending && <div className="modal-backdrop">
@@ -204,8 +357,8 @@ function Agent() {
           {job.pending.content && <pre>{job.pending.content}</pre>}
           {job.pending.expires && <p className="muted">Esta confirmacion temporal caduca en 90 segundos.</p>}
           <div className="actions">
-            <button className="secondary" disabled={confirming} onClick={() => void confirm(false)}>Rechazar</button>
-            <button disabled={confirming} onClick={() => void confirm(true)}>
+            <button className="secondary" disabled={confirming || controlJobId !== jobId} onClick={() => void confirm(false)}>Rechazar</button>
+            <button disabled={confirming || controlJobId !== jobId} onClick={() => void confirm(true)}>
               {job.pending.version !== undefined ? 'Aprobar y guardar' : 'Autorizar esta accion'}
             </button>
           </div>

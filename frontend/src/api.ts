@@ -12,7 +12,7 @@ export interface Plan {
 }
 
 export interface Job {
-  status: 'running' | 'awaiting_approval' | 'approved' | 'denied' | 'done' | 'failed'
+  status: 'running' | 'awaiting_approval' | 'approved' | 'denied' | 'interrupted' | 'done' | 'failed'
   progress?: string
   pending?: {
     id: string
